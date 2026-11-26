@@ -90,7 +90,12 @@ async function push(table: TableName) {
   const rows = dirtyRows(table).filter((r) => (r as { owner_id: string | null }).owner_id === uid);
   for (let i = 0; i < rows.length; i += PUSH_CHUNK) {
     const chunk = rows.slice(i, i + PUSH_CHUNK);
-    const body = chunk.map(({ _dirty: _, ...row }) => row);
+    // Only the synced columns: a field left on an old device row (e.g. a column the
+    // server has since dropped) would otherwise fail the whole upsert.
+    const cols = COLUMNS[table].split(', ');
+    const body = chunk.map((row) =>
+      Object.fromEntries(cols.filter((k) => k in row).map((k) => [k, (row as Record<string, unknown>)[k]])),
+    );
     const { error } = await supabase.from(table).upsert(body as never, { onConflict: 'id' });
     if (error) throw new Error(`push ${table}: ${error.message}`);
     markPushed(table, chunk);

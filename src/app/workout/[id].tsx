@@ -5,12 +5,13 @@ import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { WorkoutPhotos } from '@/components/social/workout-photo';
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { setLabels } from '@/components/workout/types';
-import { deleteWorkout, renameWorkout } from '@/lib/data/actions';
+import { deleteWorkout, renameWorkout, setWorkoutVisibility } from '@/lib/data/actions';
 import { exercisesOf, newBests, setsOf, useWorkoutData, workoutStats } from '@/lib/data/queries';
 import { equipmentLabel } from '@/lib/exercise-labels';
 import { formatDuration, formatNumber, formatWorkoutDate } from '@/lib/format';
@@ -69,6 +70,13 @@ export default function WorkoutDetailScreen() {
             <Icon name="arrow-left" size={26} color={c.textSecondary} />
           </Pressable>
         )}
+        <Pressable
+          onPress={() => router.push({ pathname: '/share/[id]', params: { id } })}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Share workout">
+          <Icon name="share-variant" size={24} color={c.textSecondary} />
+        </Pressable>
         {justFinished ? (
           <Button label="Done" variant="primary" compact onPress={close} />
         ) : (
@@ -105,6 +113,29 @@ export default function WorkoutDetailScreen() {
             {formatWorkoutDate(workout.started_at)}
           </Text>
         </View>
+
+        <WorkoutPhotos workoutId={workout.id} />
+
+        <Pressable
+          onPress={() => setWorkoutVisibility(workout.id, workout.visibility === 'private' ? 'friends' : 'private')}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: workout.visibility !== 'private' }}
+          accessibilityLabel="Show in your friends' feed"
+          style={({ pressed }) => [styles.visibility, { backgroundColor: c.surface, opacity: pressed ? 0.8 : 1 }]}>
+          <Icon
+            name={workout.visibility === 'private' ? 'lock-outline' : 'account-group-outline'}
+            size={22}
+            color={workout.visibility === 'private' ? c.textSecondary : c.accent}
+          />
+          <View style={styles.flex}>
+            <Text variant="headline">{workout.visibility === 'private' ? 'Only you' : 'Friends can see this'}</Text>
+            <Text variant="label" tone="textMuted">
+              {workout.visibility === 'private'
+                ? 'Hidden from the feed. Tap to share with friends.'
+                : "In your friends' feed. Tap to make it private."}
+            </Text>
+          </View>
+        </Pressable>
 
         <View style={[styles.stats, { backgroundColor: c.surface }]}>
           <Stat label="Duration" value={formatDuration(stats.durationS)} />
@@ -234,6 +265,15 @@ const styles = StyleSheet.create({
   titleBlock: { gap: 2 },
   titleInput: { fontFamily: fonts.condensedBold, fontSize: 26, lineHeight: 30, padding: 0, outlineWidth: 0 },
   stats: { flexDirection: 'row', justifyContent: 'space-around', borderRadius: radius.card, paddingVertical: space.lg },
+  visibility: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    borderRadius: radius.card,
+    borderCurve: 'continuous',
+    padding: space.md,
+    minHeight: 64,
+  },
   stat: { alignItems: 'center', gap: 2 },
   card: { borderRadius: radius.card, borderCurve: 'continuous', padding: space.md, gap: space.sm },
   bestHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },

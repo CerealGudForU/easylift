@@ -57,7 +57,15 @@
           ]
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EasyLift uses your photos so you can add one to a workout.",
+          "cameraPermission": "EasyLift uses the camera so you can add a photo to a workout."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,10 +9,21 @@ import { useRest } from '@/lib/rest-timer';
 import { useNow } from '@/lib/use-now';
 import { radius, size, space, useColors } from '@/theme';
 
-/** "Workout in progress" bar above the tab bar while a workout is minimised. */
+/**
+ * "Workout in progress" bar above the tab bar while a workout is minimised.
+ *
+ * The outer View is always mounted (empty when there's no workout). If the bar itself
+ * came and went, the tab bar beside it would shift position, and on Android (Fabric)
+ * the next tab switch then crashed with "addViewAt: … The specified child already has
+ * a parent" while re-parenting the tab icons.
+ */
 export function ActiveWorkoutBar() {
   const active = useActiveWorkout();
-  return active ? <Bar title={active.title} startedAt={Date.parse(active.started_at)} /> : null;
+  return (
+    <View collapsable={false}>
+      {active ? <Bar title={active.title} startedAt={Date.parse(active.started_at)} /> : null}
+    </View>
+  );
 }
 
 function Bar({ title, startedAt }: { title: string; startedAt: number }) {

@@ -174,6 +174,11 @@ export function renameWorkout(workoutId: string, title: string) {
   if (t) write((tx) => tx.patch('workouts', workoutId, { title: t }));
 }
 
+/** Who sees a workout in the feed: your friends, or only you. */
+export function setWorkoutVisibility(workoutId: string, visibility: 'friends' | 'private') {
+  write((tx) => tx.patch('workouts', workoutId, { visibility }));
+}
+
 /** Ends the workout. Unfinished sets, and exercises left with no sets, are dropped. */
 export function finishWorkout(workoutId: string) {
   const workout = getTable('workouts').get(workoutId);

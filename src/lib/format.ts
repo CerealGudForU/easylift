@@ -43,3 +43,44 @@ export function formatWorkoutDate(iso: string, now = new Date()): string {
     ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
   });
 }
+
+/** "now", "5m", "3h", "2d", then a short date ("24 Nov", "24 Nov 2025"). */
+export function formatAgo(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const s = Math.max(0, (now.getTime() - d.getTime()) / 1000);
+  if (s < 60) return 'now';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86_400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86_400) return `${Math.floor(s / 86_400)}d`;
+  return d.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
+/**
+ * When a post went up, with how long ago: "Today, 18:05 · 4h ago",
+ * "Mon, 07:30 · 3d ago", "24 Nov, 18:05" (no "ago" after a week).
+ */
+export function formatPosted(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(now) - day(d)) / 86_400_000);
+  const label =
+    days === 0
+      ? 'Today'
+      : days === 1
+        ? 'Yesterday'
+        : days < 7
+          ? d.toLocaleDateString(undefined, { weekday: 'short' })
+          : d.toLocaleDateString(undefined, {
+              day: 'numeric',
+              month: 'short',
+              ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+            });
+  if (days >= 7) return `${label}, ${time}`;
+  const ago = formatAgo(iso, now);
+  return `${label}, ${time} · ${ago === 'now' ? 'just now' : `${ago} ago`}`;
+}

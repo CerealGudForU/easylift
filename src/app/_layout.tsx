@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { useDataReady } from '@/lib/data/provider';
+import { QueryProvider } from '@/lib/query';
 import { SessionProvider, useSession } from '@/lib/session';
 import { useColors, useScheme } from '@/theme';
 
@@ -22,7 +23,9 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   return (
     <SessionProvider>
-      <RootNavigator />
+      <QueryProvider>
+        <RootNavigator />
+      </QueryProvider>
     </SessionProvider>
   );
 }
@@ -78,6 +81,13 @@ function RootNavigator() {
           <Stack.Screen name="exercises/[id]" />
           <Stack.Screen name="calendar" />
           <Stack.Screen name="routine/[id]" />
+          <Stack.Screen name="friends" />
+          <Stack.Screen name="notifications" />
+          <Stack.Screen name="post/[id]" />
+          <Stack.Screen name="share/[id]" />
+          <Stack.Screen name="user/[id]" />
+          <Stack.Screen name="user/exercises/[id]" />
+          <Stack.Screen name="photo-crop" options={{ animation: 'fade', contentStyle: { backgroundColor: '#000' } }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />
