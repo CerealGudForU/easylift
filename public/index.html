@@ -16,7 +16,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="EasyLift" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "black", not "black-translucent": iOS then lays the app out below the status bar itself.
+         With translucent, Home Screen apps came out shifted up by the status bar height, under
+         the clock and battery, with an equal gap at the bottom. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="format-detection" content="telephone=no" />
 
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
@@ -25,6 +28,7 @@
       html,
       body {
         height: 100%;
+        overflow: hidden;
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {
@@ -40,11 +44,11 @@
           background-color: #fafafa;
         }
       }
-      /* These styles make the root element full-height */
+      /* Pinned to the screen so iOS can never scroll the page and shift the app. */
       #root {
         display: flex;
-        height: 100%;
-        flex: 1;
+        position: fixed;
+        inset: 0;
       }
     </style>
   </head>
