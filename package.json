@@ -58,7 +58,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed:exercises": "node scripts/seed-exercises.mts",
-    "reset-password": "node scripts/reset-password.mts"
+    "reset-password": "node scripts/reset-password.mts",
+    "build:web": "expo export -p web && node scripts/build-sw.mjs",
+    "preview:web": "npm run build:web && wrangler dev"
   },
   "private": true,
   "allowScripts": {
