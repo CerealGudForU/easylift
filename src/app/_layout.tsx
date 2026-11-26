@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { PwaLayer } from '@/components/pwa/pwa-layer';
+import { WebSafeArea } from '@/components/pwa/safe-area';
 import { useDataReady } from '@/lib/data/provider';
 import { QueryProvider } from '@/lib/query';
 import { SessionProvider, useSession } from '@/lib/session';
@@ -19,11 +20,13 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <QueryProvider>
-        <RootNavigator />
-      </QueryProvider>
-    </SessionProvider>
+    <WebSafeArea>
+      <SessionProvider>
+        <QueryProvider>
+          <RootNavigator />
+        </QueryProvider>
+      </SessionProvider>
+    </WebSafeArea>
   );
 }
 
