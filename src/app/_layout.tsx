@@ -64,14 +64,20 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="workout/active" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+          <Stack.Screen name="workout/active" options={{ gestureEnabled: false }} />
           <Stack.Screen name="workout/[id]" />
-          <Stack.Screen name="exercises/pick" options={{ animation: 'slide_from_bottom' }} />
+          {/* Slides up when adding to a workout or routine; "New routine" opens it like any other screen. */}
+          <Stack.Screen
+            name="exercises/pick"
+            options={({ route }) => ({
+              animation: (route.params as { new?: string } | undefined)?.new === '1' ? 'default' : 'slide_from_bottom',
+            })}
+          />
           <Stack.Screen name="exercises/new" />
           <Stack.Screen name="exercises/all" />
           <Stack.Screen name="exercises/[id]" />
           <Stack.Screen name="calendar" />
-          <Stack.Screen name="routine/[id]" options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="routine/[id]" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

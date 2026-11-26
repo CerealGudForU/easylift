@@ -274,7 +274,12 @@ export default function RoutineEditorScreen() {
               label="Add exercise"
               icon="plus"
               variant={draft.exercises.length === 0 ? 'primary' : 'secondary'}
-              onPress={() => router.push({ pathname: '/exercises/pick', params: { for: 'routine' } })}
+              onPress={() =>
+                router.push({
+                  pathname: '/exercises/pick',
+                  params: { for: 'routine', current: draft.exercises.map((x) => x.exerciseId).join(',') },
+                })
+              }
             />
             {!isNew ? (
               <Button

@@ -9,7 +9,9 @@ import { Chip } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { addExercisesToWorkout } from '@/lib/data/actions';
-import { useExercises } from '@/lib/data/queries';
+import { byPosition } from '@/lib/data/order';
+import { exercisesOf, useExercises } from '@/lib/data/queries';
+import { getTable, liveRows } from '@/lib/data/store';
 import { equipmentLabel, EQUIPMENT_OPTIONS, muscleLabel, MUSCLE_OPTIONS } from '@/lib/exercise-labels';
 import { goBack } from '@/lib/nav';
 import { pickResult } from '@/lib/pick-result';
@@ -18,7 +20,8 @@ import { fonts, radius, size, space, useColors } from '@/theme';
 export default function PickExercisesScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ for: 'workout' | 'routine'; id?: string; new?: string }>();
+  // `current`: comma-separated exercise ids already in the routine being edited.
+  const params = useLocalSearchParams<{ for: 'workout' | 'routine'; id?: string; new?: string; current?: string }>();
   const all = useExercises();
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<string | null>(null);
@@ -37,15 +40,54 @@ export default function PickExercisesScreen() {
     if (fresh.length) setSelected((s) => [...s, ...fresh.map((x) => x.id)]);
   }, [all]);
 
+  // Exercises listed first, in their order there, each with a short tag:
+  // - adding to a workout or routine: what's already in it ("Added");
+  // - starting a new routine: everything in your existing routines (tagged with the routine).
+  const { for: pickFor, id: workoutId, current, new: isNew } = params;
+  const newRoutine = pickFor === 'routine' && isNew === '1';
+  const already = useMemo(() => {
+    const tags = new Map<string, string[]>();
+    if (newRoutine) {
+      const routines = [...liveRows(getTable('routines'))].sort(byPosition);
+      const rex = liveRows(getTable('routine_exercises'));
+      for (const r of routines) {
+        for (const x of rex.filter((e) => e.routine_id === r.id).sort(byPosition)) {
+          const names = tags.get(x.exercise_id) ?? [];
+          if (!names.includes(r.name)) names.push(r.name);
+          tags.set(x.exercise_id, names);
+        }
+      }
+    } else {
+      const ids =
+        pickFor === 'workout' && workoutId
+          ? exercisesOf(workoutId).map((x) => x.exercise_id)
+          : (current ?? '').split(',').filter(Boolean);
+      for (const id of ids) tags.set(id, []);
+    }
+    // id -> [position, tag]
+    return new Map(
+      [...tags].map(([id, names], i) => [
+        id,
+        [i, names.length === 0 ? 'ADDED' : names.length === 1 ? names[0] : `${names.length} routines`] as const,
+      ]),
+    );
+  }, [newRoutine, pickFor, workoutId, current]);
+
   const list = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return all.filter((x) => {
+    const matches = all.filter((x) => {
       if (muscle && x.primary_muscle !== muscle) return false;
       if (equipment && (x.equipment === 'kettlebells' ? 'kettlebell' : x.equipment) !== equipment) return false;
       const hay = `${x.name} ${equipmentLabel(x.equipment)} ${muscleLabel(x.primary_muscle)}`.toLowerCase();
       return words.every((w) => hay.includes(w));
     });
-  }, [all, query, muscle, equipment]);
+    const inWorkout = matches
+      .filter((x) => already.has(x.id))
+      .sort((a, b) => already.get(a.id)![0] - already.get(b.id)![0]);
+    return [...inWorkout, ...matches.filter((x) => !already.has(x.id))];
+  }, [all, query, muscle, equipment, already]);
+  const inWorkoutCount = list.filter((x) => already.has(x.id)).length;
+  const topHeading = newRoutine ? 'In your routines' : pickFor === 'workout' ? 'In this workout' : 'In this routine';
 
   const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
@@ -117,10 +159,26 @@ export default function PickExercisesScreen() {
             <Button label="Create exercise" icon="plus" onPress={() => router.push('/exercises/new')} />
           </View>
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const on = selected.includes(item.id);
+          const tag = already.get(item.id)?.[1];
+          // Section labels only when there's something on top to separate.
+          const heading =
+            inWorkoutCount === 0 ? null : index === 0 ? topHeading : index === inWorkoutCount ? 'All exercises' : null;
           return (
-            <Pressable
+            <>
+              {heading ? (
+                <View
+                  style={[
+                    styles.heading,
+                    index > 0 ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border, marginTop: space.sm } : null,
+                  ]}>
+                  <Text variant="caption" tone="textMuted" accessibilityRole="header">
+                    {heading.toUpperCase()}
+                  </Text>
+                </View>
+              ) : null}
+              <Pressable
               onPress={() => toggle(item.id)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
@@ -144,7 +202,13 @@ export default function PickExercisesScreen() {
                   {item.owner_id ? ' · Custom' : ''}
                 </Text>
               </View>
-            </Pressable>
+              {tag ? (
+                <Text variant="caption" tone="accent" numberOfLines={1} style={styles.tag}>
+                  {tag}
+                </Text>
+              ) : null}
+              </Pressable>
+            </>
           );
         }}
       />
@@ -213,4 +277,6 @@ const styles = StyleSheet.create({
   empty: { padding: space.xl, gap: space.lg },
   center: { textAlign: 'center' },
   dock: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  heading: { marginHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.xs },
+  tag: { maxWidth: 120 },
 });
