@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, type PressableProps, type ViewStyle } from 'react-native';
 
 import { radius, size, space, useColors } from '@/theme';
 
@@ -12,10 +12,12 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
   variant?: Variant;
   icon?: IconName;
   compact?: boolean;
+  /** Shows a spinner and blocks presses. */
+  loading?: boolean;
   style?: ViewStyle;
 };
 
-export function Button({ label, variant = 'secondary', icon, compact, style, ...rest }: Props) {
+export function Button({ label, variant = 'secondary', icon, compact, loading, disabled, style, ...rest }: Props) {
   const c = useColors();
   const bg = { primary: c.accent, secondary: c.field, ghost: 'transparent', destructive: 'transparent' }[variant];
   const fg = { primary: c.onAccent, secondary: c.text, ghost: c.textSecondary, destructive: c.danger }[variant];
@@ -24,16 +26,19 @@ export function Button({ label, variant = 'secondary', icon, compact, style, ...
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
+      disabled={disabled || loading}
       hitSlop={compact ? 6 : 0}
       style={({ pressed }) => [
         styles.base,
         compact ? styles.compact : styles.regular,
-        { backgroundColor: bg, opacity: pressed ? 0.75 : 1 },
+        { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.75 : 1 },
         style,
       ]}
       {...rest}>
       <View style={styles.row}>
-        {icon ? <Icon name={icon} size={compact ? 16 : 20} color={fg} /> : null}
+        {loading ? <ActivityIndicator size="small" color={fg} /> : null}
+        {icon && !loading ? <Icon name={icon} size={compact ? 16 : 20} color={fg} /> : null}
         <Text variant={compact ? 'label' : 'headline'} style={{ color: fg }}>
           {label}
         </Text>

@@ -56,7 +56,8 @@
             "node_modules/@expo-google-fonts/barlow/600SemiBold/Barlow_600SemiBold.ttf"
           ]
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -22,8 +22,10 @@ module.exports = function withAndroidCmake(config) {
       }
       const file = path.join(cfg.modRequest.platformProjectRoot, 'local.properties');
       const lines = fs.existsSync(file)
-        ? fs.readFileSync(file, 'utf8').split(/\r?\n/).filter((l) => l && !l.startsWith('cmake.dir='))
+        ? fs.readFileSync(file, 'utf8').split(/\r?\n/).filter((l) => l && !/^(cmake|sdk)\.dir=/.test(l))
         : [];
+      // sdk.dir too, so Gradle finds the SDK even from shells without ANDROID_HOME.
+      lines.push(`sdk.dir=${sdk.replace(/\\/g, '/')}`);
       lines.push(`cmake.dir=${cmakeDir.replace(/\\/g, '/')}`);
       fs.writeFileSync(file, lines.join('\n') + '\n');
       return cfg;

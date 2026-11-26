@@ -86,11 +86,11 @@ If Pro is ever bought, the research budget is about 150–250 credits:
 
 ### 4.1 Username + password login (no email)
 Supabase Auth needs an email or phone for each user, so EasyLift creates a **synthetic email that the user never sees**:
-- Sign-up form: username + password + confirm password. The client normalises the username (lowercase, `^[a-z0-9_.]{3,20}$`) and calls `signUp({ email: \`${username}@users.easylift.invalid\`, password, options: { data: { username } } })`. `.invalid` is a reserved TLD, so no mail can ever be sent. If Supabase's validator rejects it, use `@easylift.local`.
+- Sign-up form: username + password + confirm password. Usernames (`^[A-Za-z0-9_.]{3,20}$`) keep the capitals the user picks for display ("EthanJG") but are unique and matched ignoring case (citext). The client calls `signUp` with the email `<lowercased username>@users.easylift.cerealgudforu.workers.dev` and `data: { username }` (`src/lib/auth.ts`). Supabase rejects reserved TLDs (`.invalid`, `.local`), so the synthetic address uses a subdomain of our own workers.dev host, which has no mail server. With "Confirm email" off, no mail is ever sent. **Never change this domain**: existing accounts sign in through it.
 - Sign-in: username + password → same mapping → `signInWithPassword`.
-- Supabase dashboard: **turn off "Confirm email"**, set minimum password length to 8 with leaked-password protection, and keep the sign-up rate limits.
+- Supabase dashboard: **"Confirm email" is off** (done 2026-11-26). The app enforces the 8-character minimum on sign-up. Keep the sign-up rate limits.
 - A trigger on `auth.users` insert creates `profiles` with `username UNIQUE` (citext). A `username_available(text)` RPC gives live "username taken" feedback.
-- **No "forgot password" flow.** The app is for friends and family, so the admin resets passwords by hand. `scripts/reset-password.ts <username> <new-password>` runs locally with the service-role key from a git-ignored `.env.local` and calls `auth.admin.updateUserById`. The sign-in screen says "Forgot it? Ask the admin." Logged-in users can change their own password in Settings.
+- **No "forgot password" flow.** The app is for friends and family, so the admin resets passwords by hand. `npm run reset-password -- <username> <new-password>` runs locally with the secret key (`SUPABASE_SECRET_KEY`) from a git-ignored `.env.local` and calls `auth.admin.updateUserById`. The sign-in screen says "Forgot it? Ask the admin." Logged-in users can change their own password in Settings.
 - Usernames are the public identity, so the synthetic email is never shown or exposed through the API (profiles holds only the username).
 
 ### 4.2 Friends-based social
@@ -131,7 +131,7 @@ body_measurements(id, owner_id, measured_at, weight_kg, body_fat_pct, ...)
 - `npx expo export -p web` → `dist/`, deployed with **Wrangler to Workers static assets** (or Cloudflare Pages; either works). SPA fallback goes to `index.html`.
 - PWA layer: `manifest.webmanifest` (name, `display: standalone`, theme colours from tokens, 192/512 + maskable icons), `apple-touch-icon`, `apple-mobile-web-app-*` meta, and a Workbox-generated service worker (precache the app shell, network-first for API calls).
 - `_headers`: `no-cache` on `sw.js` and `index.html`, immutable caching on hashed assets, and a strict CSP that allows the Supabase URL.
-- Worker name `easylift` → **https://easylift.cerealgudforu.workers.dev** (you'll set this up later; a custom domain can be added after that). Add this URL to Supabase Auth's allowed site URLs. Supabase env vars set as build-time `EXPO_PUBLIC_*` (anon key only; never the service key).
+- Worker name `easylift` → **https://easylift.cerealgudforu.workers.dev** (you'll set this up later; a custom domain can be added after that). Add this URL to Supabase Auth's allowed site URLs. Supabase env vars set as build-time `EXPO_PUBLIC_*` (publishable key only; never the secret key).
 
 **iOS PWA limits to design around**
 - No background execution: the rest timer must be based on timestamps (`endsAt`), not intervals, so it stays correct after the app is backgrounded. Alerts come from a scheduled local notice when possible, otherwise a vibration/sound on return.
@@ -168,7 +168,7 @@ push tag v1.2.0 ──► GitHub Actions ──► signed APK ──► GitHub R
 **PWA via Cloudflare from GitHub**
 - Connect the repo in Cloudflare dashboard → Workers → `easylift` → **Settings → Builds → Connect to GitHub**. Build command `npx expo export -p web && node scripts/build-sw.mjs`, deploy command `npx wrangler deploy`. Every push to `main` deploys, and other branches get preview URLs.
 - `wrangler.jsonc` in the repo: `assets.directory = "dist"`, `not_found_handling = "single-page-application"`.
-- Build env vars (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`) are set in Cloudflare build settings. Both are safe to make public.
+- Build env vars (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) are set in Cloudflare build settings. Both are safe to make public.
 - PWA updates: the service worker detects a new version and shows a "New version, tap to reload" toast. It never reloads in the middle of a workout.
 
 **CI checks** (`.github/workflows/ci.yml`, on every PR/push): typecheck, lint, Vitest, Supabase migration lint. Releases only build from a green `main`.
