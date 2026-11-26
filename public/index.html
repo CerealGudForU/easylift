@@ -24,11 +24,15 @@
 
     <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
     <style id="expo-reset">
-      /* These styles make the body full-height */
+      /* The page itself never scrolls or bounces (only the app's own lists do); otherwise iOS
+         drags the whole app up when you swipe on a screen that can't scroll. */
       html,
       body {
+        position: fixed;
+        inset: 0;
         height: 100%;
         overflow: hidden;
+        overscroll-behavior: none;
       }
       /* These styles disable body scrolling if you are using <ScrollView> */
       body {

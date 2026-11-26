@@ -1,7 +1,7 @@
 // Web/PWA only (the native app uses pwa-layer.native.tsx, which renders nothing).
 // - Registers the service worker that lets the installed app open offline.
-// - Shows "New version available" when an update has downloaded. It waits for a tap and
-//   is hidden during a workout, so the app never reloads mid-workout.
+// - Shows "New version available" when an update has downloaded. It only reloads when
+//   tapped (an active workout is stored on the device, so it survives the reload).
 // - On iPhone/iPad in the browser, explains how to add EasyLift to the Home Screen.
 // - Keeps the screen awake while a workout is in progress.
 // - Asks the browser to keep this site's data (the offline workout log) from being evicted.
@@ -24,10 +24,12 @@ export function PwaLayer() {
   const [install, setInstall] = useState(shouldShowInstallGuide);
   useWakeLock(working);
 
-  const showUpdate = !!update && !working;
-  if (!showUpdate && !install) return null;
+  const [debug, setDebug] = useState(true);
+
+  const showUpdate = !!update;
   return (
     <View pointerEvents="box-none" style={[styles.layer, { paddingTop: insets.top + space.sm }]}>
+      {debug ? <DebugPanel onClose={() => setDebug(false)} /> : null}
       {showUpdate ? <UpdateBanner onReload={update} /> : null}
       {install && !showUpdate ? (
         <InstallGuide
@@ -81,6 +83,89 @@ function InstallGuide({ onClose }: { onClose: () => void }) {
         <Icon name="plus-box-outline" size={20} color={c.accent} />
         <Text variant="body">Add to Home Screen</Text>
       </View>
+    </View>
+  );
+}
+
+/**
+ * Temporary: screen and safe-area measurements for fixing the iPhone Home Screen layout.
+ * Refreshes every second; the X hides it until the app is next opened.
+ */
+function DebugPanel({ onClose }: { onClose: () => void }) {
+  const insets = useSafeAreaInsets();
+  const [info, setInfo] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let version = '…';
+    const ask = () => {
+      const ctl = navigator.serviceWorker?.controller;
+      if (!ctl) {
+        version = 'no service worker';
+        return;
+      }
+      const channel = new MessageChannel();
+      channel.port1.onmessage = (e) => {
+        version = String(e.data);
+      };
+      ctl.postMessage('VERSION', [channel.port2]);
+      // An old worker never answers.
+      setTimeout(() => {
+        if (version === '…') version = 'old (no reply)';
+      }, 1500);
+    };
+    // Measures env(safe-area-inset-*) directly, independent of the safe-area library.
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+    document.body.appendChild(probe);
+
+    const read = () => {
+      const cs = getComputedStyle(probe);
+      const root = document.getElementById('root')?.getBoundingClientRect();
+      const vv = window.visualViewport;
+      const meta = (name: string) => document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') ?? 'none';
+      setInfo({
+        version,
+        statusBar: meta('apple-mobile-web-app-status-bar-style'),
+        viewportMeta: meta('viewport'),
+        standalone: `${(navigator as Navigator & { standalone?: boolean }).standalone} / ${matchMedia('(display-mode: standalone)').matches}`,
+        screen: `${screen.width}×${screen.height} @${devicePixelRatio}x`,
+        inner: `${innerWidth}×${innerHeight}`,
+        docClient: `${document.documentElement.clientWidth}×${document.documentElement.clientHeight}`,
+        visualVP: vv ? `${Math.round(vv.width)}×${Math.round(vv.height)} top ${Math.round(vv.offsetTop)} pageTop ${Math.round(vv.pageTop)}` : 'n/a',
+        root: root ? `top ${Math.round(root.top)} bottom ${Math.round(root.bottom)} h ${Math.round(root.height)}` : 'n/a',
+        scroll: `window ${scrollY} / body ${document.body.scrollTop} / html ${document.documentElement.scrollTop}`,
+        envInsets: `t ${cs.paddingTop} b ${cs.paddingBottom} l ${cs.paddingLeft} r ${cs.paddingRight}`,
+        ua: navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 90),
+      });
+    };
+    ask();
+    read();
+    const t = setInterval(read, 1000);
+    return () => {
+      clearInterval(t);
+      probe.remove();
+    };
+  }, []);
+
+  return (
+    <View style={styles.debug}>
+      <View style={styles.row}>
+        <Text variant="label" style={[styles.flex, styles.debugText]}>
+          DEBUG (screenshot this)
+        </Text>
+        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Hide debug panel">
+          <Icon name="close" size={20} color="#FAFAFA" />
+        </Pressable>
+      </View>
+      <Text variant="caption" style={styles.debugText}>
+        {`rnInsets: t ${insets.top} b ${insets.bottom} l ${insets.left} r ${insets.right}`}
+      </Text>
+      {Object.entries(info).map(([k, v]) => (
+        <Text key={k} variant="caption" style={styles.debugText}>
+          {`${k}: ${v}`}
+        </Text>
+      ))}
     </View>
   );
 }
@@ -197,5 +282,18 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   flex: { flex: 1 },
   close: { width: size.touch, height: size.touch, alignItems: 'center', justifyContent: 'center', margin: -space.md },
+  debug: {
+    position: 'absolute',
+    top: 220,
+    left: space.md,
+    right: space.md,
+    padding: space.md,
+    gap: 2,
+    borderRadius: radius.control,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    borderWidth: 1,
+    borderColor: '#F97316',
+  },
+  debugText: { color: '#FAFAFA', textTransform: 'none' },
   step: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexWrap: 'wrap' },
 });

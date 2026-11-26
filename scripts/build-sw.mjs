@@ -59,6 +59,8 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+  // The debug panel asks which version is running.
+  if (event.data === 'VERSION') event.ports[0]?.postMessage(VERSION);
 });
 
 // Drop older versions' caches and take control of open pages right away.
@@ -78,14 +80,21 @@ self.addEventListener('fetch', (event) => {
   // Supabase and anything else off-site go straight to the network.
   if (url.origin !== self.location.origin) return;
 
-  // Every page is the same single-page app: serve the cached shell, so the app opens
-  // instantly and with no connection.
+  // Every page is the same single-page app. Online, load the latest page from the
+  // network (so a new deploy shows up on the next launch); offline, or if the network
+  // takes over 3 s, use the cached copy.
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches
-        .open(CACHE)
-        .then((cache) => cache.match('/'))
-        .then((shell) => shell || fetch(request)),
+      caches.open(CACHE).then((cache) => {
+        const network = fetch(request).then((response) => {
+          if (response.ok && !response.redirected) cache.put('/', response.clone());
+          return response;
+        });
+        const fallback = new Promise((resolve) => setTimeout(resolve, 3000)).then(() => cache.match('/'));
+        return Promise.race([network.catch(() => cache.match('/')), fallback]).then(
+          (response) => response || network.catch(() => cache.match('/')).then((r) => r || Response.error()),
+        );
+      }),
     );
     return;
   }
