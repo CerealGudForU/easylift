@@ -67,7 +67,14 @@ export function Stepper({ label, value, step, min = 0, max = 9999, decimal, unit
         <TextInput
           ref={inputRef}
           value={draft ?? formatNumber(value)}
-          onFocus={() => setDraft(String(value))}
+          onFocus={() => {
+            setDraft(String(value));
+            // selectTextOnFocus doesn't stick on web (the mouse-up after the tap moves the caret), so select
+            // after that render; typing then replaces the old number instead of appending to it.
+            if (process.env.EXPO_OS === 'web') {
+              setTimeout(() => (inputRef.current as unknown as HTMLInputElement | null)?.select?.(), 120);
+            }
+          }}
           onBlur={() => setDraft(null)}
           onChangeText={(t) => {
             const clean = t.replace(',', '.').replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '');

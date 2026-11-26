@@ -1,59 +1,52 @@
-// Seed the global exercise library from yuhonas/free-exercise-db (Unlicense,
-// public domain). Safe to re-run: rows upsert on source_id.
+// Seed the global exercise library from scripts/exercise-library.mts.
+// Safe to re-run: rows upsert on source_id (a slug of the name). Global exercises
+// that are no longer in the list get a deleted_at tombstone, so devices drop them
+// on their next sync; anything already logged against them keeps working.
 // Usage: npm run seed:exercises
 import { admin } from './admin-client.mts';
+import { LIBRARY } from './exercise-library.mts';
 
-const SOURCE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
+const slug = (name: string) =>
+  'el_' + name.toLowerCase().replace(/'/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
-type Source = {
-  id: string;
-  name: string;
-  force: string | null;
-  level: string | null;
-  mechanic: string | null;
-  equipment: string | null;
-  primaryMuscles: string[];
-  secondaryMuscles: string[];
-  instructions: string[];
-  category: string;
-  images: string[];
-};
+const now = new Date().toISOString();
+const rows = LIBRARY.map(([name, equipment, primary, secondary = [], kind = 'weight_reps']) => ({
+  source_id: slug(name),
+  name,
+  kind,
+  category: primary === 'cardio' ? 'cardio' : 'strength',
+  primary_muscle: primary,
+  secondary_muscles: secondary,
+  equipment,
+  force: null,
+  level: null,
+  mechanic: null,
+  instructions: [],
+  images: [],
+  owner_id: null,
+  client_updated_at: now,
+  deleted_at: null,
+}));
 
-const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const strs = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+const ids = new Set(rows.map((r) => r.source_id));
+if (ids.size !== rows.length) throw new Error('Duplicate exercise names in the library');
 
-function kindOf(x: Source) {
-  if (x.category === 'cardio') return 'distance_time';
-  if (x.equipment === 'body only') return 'reps';
-  return 'weight_reps';
+const { error } = await admin.from('exercises').upsert(rows, { onConflict: 'source_id' });
+if (error) throw new Error(`Upsert failed: ${error.message}`);
+
+// Retire global exercises that are no longer in the list.
+const { data: existing, error: listError } = await admin
+  .from('exercises')
+  .select('id, source_id')
+  .is('owner_id', null)
+  .is('deleted_at', null);
+if (listError) throw new Error(`Listing failed: ${listError.message}`);
+const retire = (existing ?? []).filter((x) => !x.source_id || !ids.has(x.source_id)).map((x) => x.id);
+for (let i = 0; i < retire.length; i += 200) {
+  const { error: e } = await admin
+    .from('exercises')
+    .update({ deleted_at: now, client_updated_at: now })
+    .in('id', retire.slice(i, i + 200));
+  if (e) throw new Error(`Retiring failed: ${e.message}`);
 }
-
-const res = await fetch(SOURCE);
-if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-const data: unknown = await res.json();
-if (!Array.isArray(data)) throw new Error('Unexpected format: expected an array');
-
-// Stretches are left out: EasyLift logs training sets.
-const rows = (data as Source[])
-  .filter((x) => str(x?.id) && str(x?.name) && x.category !== 'stretching')
-  .map((x) => ({
-    source_id: str(x.id)!,
-    name: str(x.name)!.slice(0, 80),
-    kind: kindOf(x),
-    category: str(x.category),
-    primary_muscle: strs(x.primaryMuscles)[0] ?? null,
-    secondary_muscles: [...strs(x.primaryMuscles).slice(1), ...strs(x.secondaryMuscles)],
-    equipment: str(x.equipment),
-    force: str(x.force),
-    level: str(x.level),
-    mechanic: str(x.mechanic),
-    instructions: strs(x.instructions),
-    images: strs(x.images),
-    owner_id: null,
-  }));
-
-for (let i = 0; i < rows.length; i += 200) {
-  const { error } = await admin.from('exercises').upsert(rows.slice(i, i + 200), { onConflict: 'source_id' });
-  if (error) throw new Error(`Upsert failed at ${i}: ${error.message}`);
-}
-console.log(`Seeded ${rows.length} exercises (of ${data.length} in the source).`);
+console.log(`Library: ${rows.length} exercises. Retired ${retire.length} old ones.`);

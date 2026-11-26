@@ -33,6 +33,8 @@ type Props = {
   /** `fromPanel`: toggled from the open set (moves on / stays open); otherwise from a row checkbox. */
   onToggleDone: (fromPanel?: boolean) => void;
   onPressType: () => void;
+  /** Shows a delete button on the open set. */
+  onDelete?: () => void;
 };
 
 export function SetRow(props: Props) {
@@ -68,8 +70,9 @@ function CollapsedSet({ set, label, onExpand, onToggleDone, onPressType }: Props
 
   const prev = set.previous;
   // Undone sets show last time's numbers as a muted hint until they're set.
-  const weight = set.weightKg ?? prev?.weightKg;
-  const reps = set.reps ?? prev?.reps;
+  const suggest = prev ?? set.hint;
+  const weight = set.weightKg ?? suggest?.weightKg;
+  const reps = set.reps ?? suggest?.reps;
   const hinted = set.weightKg == null && set.reps == null;
 
   return (
@@ -105,7 +108,7 @@ function CollapsedSet({ set, label, onExpand, onToggleDone, onPressType }: Props
   );
 }
 
-function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressType }: Props) {
+function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressType, onDelete }: Props) {
   const c = useColors();
   const ref = useRef<ViewRef>(null);
   const ensureVisible = useEnsureVisible();
@@ -116,8 +119,9 @@ function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressTy
   }, [ensureVisible]);
   const labelColor = useLabelColor(set);
   const prev = set.previous;
-  const weight = set.weightKg ?? prev?.weightKg ?? 0;
-  const reps = set.reps ?? prev?.reps ?? 0;
+  const suggest = prev ?? set.hint;
+  const weight = set.weightKg ?? suggest?.weightKg ?? 0;
+  const reps = set.reps ?? suggest?.reps ?? 0;
 
   return (
     <Animated.View
@@ -128,12 +132,15 @@ function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressTy
         // A completed set stays green while open, like its collapsed row.
         set.done ? { borderColor: c.success, backgroundColor: c.successBg } : { borderColor: c.accent },
       ]}>
-      {/* The whole top strip closes the set; only the set number keeps its own action (set type). */}
-      <Pressable
-        onPress={onCollapse}
-        accessibilityRole="button"
-        accessibilityLabel={`Close set ${label}`}
-        style={styles.panelHead}>
+      {/* The top strip closes the set, except the set number (set type) and the delete button.
+          They're siblings, not nested, so web doesn't get buttons inside a button. */}
+      <View style={styles.panelHead}>
+        <Pressable
+          onPress={onCollapse}
+          accessibilityRole="button"
+          accessibilityLabel={`Close set ${label}`}
+          style={StyleSheet.absoluteFill}
+        />
         <Pressable
           onPress={onPressType}
           accessibilityRole="button"
@@ -143,13 +150,24 @@ function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressTy
             {label}
           </Text>
         </Pressable>
-        {/* Plain text, so tapping it closes the set like the rest of the strip. */}
-        <Text variant="label" tone="textMuted">
+        <Text variant="label" tone="textMuted" pointerEvents="none">
           {prev ? `Last time ${formatNumber(prev.weightKg)} × ${prev.reps}` : 'No previous'}
         </Text>
-        <View style={styles.flex} />
-        <Icon name="chevron-up" size={22} color={c.textSecondary} />
-      </Pressable>
+        <View style={styles.flex} pointerEvents="none" />
+        {onDelete ? (
+          <Pressable
+            onPress={onDelete}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete set ${label}`}
+            style={styles.delete}>
+            <Icon name="trash-can-outline" size={20} color={c.textSecondary} />
+          </Pressable>
+        ) : null}
+        <View pointerEvents="none">
+          <Icon name="chevron-up" size={22} color={c.textSecondary} />
+        </View>
+      </View>
 
       <Stepper
         label="Kg"
@@ -221,6 +239,7 @@ const styles = StyleSheet.create({
   labelCell: { width: 36, height: size.touch, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, height: size.touch },
   prev: { flex: 1 },
+  delete: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   value: { width: 72, textAlign: 'center' },
   valueReps: { width: 72, textAlign: 'center' },
   check: {

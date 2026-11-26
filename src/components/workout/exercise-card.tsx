@@ -21,6 +21,7 @@ type Props = {
   onAddSet: () => void;
   onChangeRest: (seconds: number) => void;
   onPressMenu?: () => void;
+  onDeleteSet?: (setId: string) => void;
 };
 
 export function ExerciseCard({
@@ -34,6 +35,7 @@ export function ExerciseCard({
   onAddSet,
   onChangeRest,
   onPressMenu,
+  onDeleteSet,
 }: Props) {
   const c = useColors();
   const labels = setLabels(exercise.sets);
@@ -82,6 +84,7 @@ export function ExerciseCard({
             onChange={(patch) => onChangeSet(s.id, patch)}
             onToggleDone={(fromPanel) => onToggleSet(s.id, fromPanel ?? false)}
             onPressType={() => onPressSetType(s.id)}
+            onDelete={onDeleteSet ? () => onDeleteSet(s.id) : undefined}
           />
         ))}
       </View>

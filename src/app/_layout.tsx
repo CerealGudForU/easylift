@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { useDataReady } from '@/lib/data/provider';
 import { SessionProvider, useSession } from '@/lib/session';
 import { useColors, useScheme } from '@/theme';
 
@@ -38,10 +39,12 @@ function RootNavigator() {
   const { session, loading } = useSession();
   const scheme = useScheme();
   const c = useColors();
-  const ready = (loaded || !!error) && !loading;
+  const dataReady = useDataReady();
+  const ready = (loaded || !!error) && !loading && dataReady;
 
   // Keep the splash up until fonts and the stored session are both ready, so there's
-  // no flash of the sign-in screen for someone who is already signed in.
+  // no flash of the sign-in screen for someone who is already signed in (and their
+  // local data is loaded before the first screen renders).
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
@@ -61,6 +64,11 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
         <Stack.Protected guard={signedIn}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout/active" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
+          <Stack.Screen name="workout/[id]" />
+          <Stack.Screen name="exercises/pick" options={{ animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="exercises/new" />
+          <Stack.Screen name="routine/[id]" options={{ animation: 'slide_from_bottom' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

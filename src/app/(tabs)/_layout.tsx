@@ -1,6 +1,8 @@
 import { Tabs } from 'expo-router';
+import { BottomTabBar } from 'expo-router/tabs';
 
 import { Icon, type IconName } from '@/components/ui/icon';
+import { ActiveWorkoutBar } from '@/components/workout/active-workout-bar';
 import { fonts, useColors } from '@/theme';
 
 const tabIcon = (name: IconName) =>
@@ -12,6 +14,12 @@ export default function TabsLayout() {
   const c = useColors();
   return (
     <Tabs
+      tabBar={(props) => (
+        <>
+          <ActiveWorkoutBar />
+          <BottomTabBar {...props} />
+        </>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: c.accent,

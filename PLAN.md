@@ -67,7 +67,7 @@ If Pro is ever bought, the research budget is about 150–250 credits:
 **MVP (v1)**
 - Auth: **username + password only, no email** (see §4.1)
 - **Friends-based social:** search by username, send/accept friend requests, a feed of friends' workouts, likes, comments, and a share card
-- Exercise library: seeded from the public-domain dataset [`yuhonas/free-exercise-db`](https://github.com/yuhonas/free-exercise-db) (check the license at import). Includes muscle-group/equipment filters and custom exercises.
+- Exercise library: EasyLift's own curated list of ~100 general exercises, one per movement and equipment ("Barbell Squat", "Kettlebell Squat", "Lat Pulldown"), not every grip/tempo variant (`scripts/exercise-library.mts`, seeded with `npm run seed:exercises`, which retires removed entries). Includes muscle-group/equipment filters and custom exercises for anything more specific. (Replaced the free-exercise-db import on 2026-11-26: its names were too specific.)
 - Routines: create, reorder (drag), folders, and "start workout from routine"
 - **Active workout** (the core screen): set rows (weight × reps, RPE), set types (warm-up, normal, drop, failure), "previous" values shown inline, tap-to-complete, supersets, notes, an auto rest timer with haptics, and a minimised "workout in progress" bar that stays across tabs
 - Workout summary: duration, volume, PRs hit
@@ -183,11 +183,17 @@ push tag v1.2.0 ──► GitHub Actions ──► signed APK ──► GitHub R
 | 1 | **Research**: Claude studies Hevy, Fitbod, Strong and others from store listings + help docs, plus an optional live walkthrough on your phone over adb | built-in browser, adb | `research/fitness/*.md` + feature matrix |
 | 2 | **Design system**: tokens, type, icons (one icon set, e.g. Lucide/Phosphor, no emoji), core components (SetRow, NumericStepper, RestTimer, ExerciseCard, Sheet) | ui-ux-pro-max, appllama-app-design-skill | `design/MASTER.md` + component gallery screen in light and dark |
 | 3 | **Backend + auth**: migrations, RLS, exercise seed, username/password sign-up/in, admin reset script | Supabase MCP/CLI | Advisors clean; RLS tests pass; sign up → sign in works on phone + web |
-| 4 | **Core loop**: library → routine builder → active workout → summary → history | all | A full workout can be logged offline on Android and web and syncs |
+| 4 | **Core loop**: library → routine builder → active workout → summary → history | all | A full workout can be logged offline on Android and web and syncs (done 2026-11-26, see §7.1) |
 | 5 | **Progress**: PRs, charts, calendar, per-exercise history | ui-ux-pro-max `--domain chart` | Charts readable, accessible, correct against fixtures |
 | 6 | **Friends + feed**: username search, requests, feed, likes, comments, notifications, share card | all | Feed paginates; private/non-friend workouts never leak (RLS test) |
 | 7 | **PWA + deploy**: manifest, SW, iOS install flow, Cloudflare connected to GitHub | — | Push to main → live at easylift.cerealgudforu.workers.dev; installed on a real iPhone, works in airplane mode |
 | 8 | **Android release pipeline**: icons, splash, keystore, Actions release workflow, in-app updater | — | Tag v0.1.0 → APK on GitHub Releases → installs on your phone; tag v0.1.1 → the app offers the update and it installs over v0.1.0 |
+
+### 7.1 Phase 4 notes (2026-11-26)
+- **Offline-first store** (`src/lib/data/`): the UI reads and writes a device copy (SQLite rows on Android, localStorage per table on web); `sync.ts` pushes dirty rows parents-first and pulls by `updated_at`, last-write-wins on `client_updated_at` (server trigger `private.keep_newest` skips stale upserts). Syncs after edits, on foreground, and every 30 s while anything is waiting.
+- **Workout tab**: floating "Start Workout" button; routines list with "Start routine". "New routine" opens the exercise picker first; the name is optional (blank = named after its main muscles, e.g. "Chest & Shoulders").
+- **Active workout**: previous values from the last session, suggested values from the set above when there's no history, rest timer that survives minimising, "workout in progress" bar above the tabs, finish drops unfinished sets.
+- Not in Phase 4 yet: supersets, RPE, exercise notes, timed/distance logging (cardio is logged as weight × reps), drag reordering (exercises move up/down from their menu), kg/lb setting.
 
 **Per-screen definition of done** (Appllama + UI UX Pro Max combined): light/dark, safe areas, empty/loading/error/long-content states, 44px targets, large text, reduced motion respected, motion checked in an emulator screen recording, works offline.
 

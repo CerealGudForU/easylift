@@ -8,6 +8,8 @@ export type WorkoutSet = {
   done: boolean;
   /** Same set position from the last session of this exercise. */
   previous?: { weightKg: number; reps: number };
+  /** Suggested values when there's no previous: the set above it in this workout. */
+  hint?: { weightKg: number; reps: number };
 };
 
 export type WorkoutExercise = {
