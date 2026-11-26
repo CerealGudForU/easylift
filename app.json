@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#0A0A0A",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -44,7 +44,19 @@
           }
         }
       ],
-      "./plugins/with-android-cmake.js"
+      "./plugins/with-android-cmake.js",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "node_modules/@expo-google-fonts/barlow-condensed/600SemiBold/BarlowCondensed_600SemiBold.ttf",
+            "node_modules/@expo-google-fonts/barlow-condensed/700Bold/BarlowCondensed_700Bold.ttf",
+            "node_modules/@expo-google-fonts/barlow/400Regular/Barlow_400Regular.ttf",
+            "node_modules/@expo-google-fonts/barlow/500Medium/Barlow_500Medium.ttf",
+            "node_modules/@expo-google-fonts/barlow/600SemiBold/Barlow_600SemiBold.ttf"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
