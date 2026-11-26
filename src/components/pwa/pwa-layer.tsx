@@ -23,6 +23,7 @@ export function PwaLayer() {
   const update = useServiceWorker();
   const [install, setInstall] = useState(shouldShowInstallGuide);
   useWakeLock(working);
+  useSafeAreaRefresh();
 
   const [debug, setDebug] = useState(true);
 
@@ -234,6 +235,44 @@ function useServiceWorker(): (() => void) | null {
   }, []);
 
   return waiting ? () => waiting.postMessage('SKIP_WAITING') : null;
+}
+
+/**
+ * iOS Home Screen apps report the safe areas (e.g. 34 pt for the home bar) a moment after
+ * launch, and the safe-area library, which measured once at startup, never hears about it:
+ * the tab bar then sat under the home bar. This watches the real values and, when they
+ * change, fires a resize event, which makes the library measure again.
+ */
+function useSafeAreaRefresh() {
+  useEffect(() => {
+    const probe = document.createElement('div');
+    probe.style.cssText =
+      'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+    document.body.appendChild(probe);
+    let last = '';
+    const check = () => {
+      const cs = getComputedStyle(probe);
+      const now = `${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft}`;
+      if (now !== last) {
+        if (last) window.dispatchEvent(new Event('resize'));
+        last = now;
+      }
+    };
+    check();
+    // Quick checks right after launch, then a slow one (rotation, returning to the app).
+    const fast = [100, 300, 700, 1500, 3000].map((ms) => setTimeout(check, ms));
+    const slow = setInterval(check, 2000);
+    document.addEventListener('visibilitychange', check);
+    // Force one re-measure after launch even if the first reading was already right.
+    const nudge = setTimeout(() => window.dispatchEvent(new Event('resize')), 500);
+    return () => {
+      fast.forEach(clearTimeout);
+      clearTimeout(nudge);
+      clearInterval(slow);
+      document.removeEventListener('visibilitychange', check);
+      probe.remove();
+    };
+  }, []);
 }
 
 /** Keeps the screen on while `on` (Screen Wake Lock API; re-acquired when the app returns). */
