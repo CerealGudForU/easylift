@@ -48,7 +48,14 @@ export function startWorkout(routineId?: string): string {
       rsets
         .filter((s) => s.routine_exercise_id === re.id)
         .sort(byPosition)
-        .forEach((s, j) => tx.put('workout_sets', emptySet(owner_id, id, weId, j, s.set_type)));
+        // Routine targets are pre-filled; each set still needs ticking off.
+        .forEach((s, j) =>
+          tx.put('workout_sets', {
+            ...emptySet(owner_id, id, weId, j, s.set_type),
+            weight_kg: s.target_weight_kg,
+            reps: s.target_reps,
+          }),
+        );
     });
   });
   return id;
@@ -169,7 +176,11 @@ export function renameWorkout(workoutId: string, title: string) {
 
 /** Ends the workout. Unfinished sets, and exercises left with no sets, are dropped. */
 export function finishWorkout(workoutId: string) {
+  const workout = getTable('workouts').get(workoutId);
   write((tx) => {
+    // Started from a routine: what you actually lifted becomes the routine's new plan,
+    // so the next session starts from it (progression carries forward).
+    if (workout?.routine_id) updateRoutineFromWorkout(tx, workout.routine_id, workoutId);
     for (const we of exercisesOf(workoutId)) {
       const sets = setsOf(we.id);
       const done = sets.filter((s) => s.completed_at);
@@ -179,6 +190,39 @@ export function finishWorkout(workoutId: string) {
     }
     tx.patch('workouts', workoutId, { ended_at: new Date().toISOString() });
   });
+}
+
+type Tx = Parameters<Parameters<typeof write>[0]>[0];
+
+/**
+ * Copies completed sets' weight and reps onto the routine's matching sets: each workout
+ * exercise is paired with the routine exercise for the same exercise (in order), and sets
+ * by position. Sets you skipped, and exercises or sets that aren't in the routine, leave
+ * the routine as it was.
+ */
+function updateRoutineFromWorkout(tx: Tx, routineId: string, workoutId: string) {
+  const routine = getTable('routines').get(routineId);
+  if (!routine || routine.deleted_at) return;
+  const rex = liveRows(getTable('routine_exercises'))
+    .filter((r) => r.routine_id === routineId)
+    .sort(byPosition);
+  const rsets = liveRows(getTable('routine_sets'));
+  const used = new Set<string>();
+  for (const we of exercisesOf(workoutId)) {
+    const re = rex.find((r) => r.exercise_id === we.exercise_id && !used.has(r.id));
+    if (!re) continue;
+    used.add(re.id);
+    const planned = rsets.filter((s) => s.routine_exercise_id === re.id).sort(byPosition);
+    setsOf(we.id).forEach((s, j) => {
+      const target = planned[j];
+      if (!target || !s.completed_at || s.reps == null) return;
+      if (target.target_reps === s.reps && target.target_weight_kg === s.weight_kg) return;
+      tx.patch('routine_sets', target.id, { target_reps: s.reps, target_weight_kg: s.weight_kg });
+    });
+    if (we.rest_seconds != null && we.rest_seconds !== re.rest_seconds) {
+      tx.patch('routine_exercises', re.id, { rest_seconds: we.rest_seconds });
+    }
+  }
 }
 
 /** Deletes a workout (in progress or finished) and everything in it. */
@@ -201,7 +245,8 @@ export type RoutineDraft = {
     id: string;
     exerciseId: string;
     restSeconds: number;
-    sets: { id: string; type: SetType }[];
+    /** Targets: what the set is pre-filled with when the routine is started. */
+    sets: { id: string; type: SetType; weightKg: number | null; reps: number | null }[];
   }[];
 };
 
@@ -244,8 +289,8 @@ export function saveRoutine(draft: RoutineDraft) {
           routine_exercise_id: x.id,
           position: j,
           set_type: s.type,
-          target_reps: null,
-          target_weight_kg: null,
+          target_reps: s.reps,
+          target_weight_kg: s.weightKg,
         }),
       );
     });
@@ -265,12 +310,15 @@ export function deleteRoutine(routineId: string) {
 /** A blank draft row for the routine editor. */
 export function draftExercise(exerciseId: string): RoutineDraft['exercises'][number] {
   const last = lastPerformance(exerciseId);
-  const types = last?.sets.map((s) => s.set_type) ?? Array<SetType>(DEFAULT_SETS).fill('normal');
+  // Start from what was lifted last time, or 3 empty working sets.
+  const sets =
+    last?.sets.map((s) => ({ type: s.set_type, weightKg: s.weight_kg, reps: s.reps })) ??
+    Array.from({ length: DEFAULT_SETS }, () => ({ type: 'normal' as SetType, weightKg: null, reps: null }));
   return {
     id: uuid(),
     exerciseId,
     restSeconds: last?.restSeconds ?? DEFAULT_REST,
-    sets: types.map((type) => ({ id: uuid(), type })),
+    sets: sets.map((s) => ({ id: uuid(), ...s })),
   };
 }
 

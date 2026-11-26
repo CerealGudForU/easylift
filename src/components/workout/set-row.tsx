@@ -30,8 +30,11 @@ type Props = {
   /** Close the open set (tap on its top strip). */
   onCollapse: () => void;
   onChange: (patch: Partial<WorkoutSet>) => void;
-  /** `fromPanel`: toggled from the open set (moves on / stays open); otherwise from a row checkbox. */
-  onToggleDone: (fromPanel?: boolean) => void;
+  /**
+   * `fromPanel`: toggled from the open set (moves on / stays open); otherwise from a row checkbox.
+   * Leave it out when planning (routine editor): no checkbox and no Complete button.
+   */
+  onToggleDone?: (fromPanel?: boolean) => void;
   onPressType: () => void;
   /** Shows a delete button on the open set. */
   onDelete?: () => void;
@@ -103,7 +106,7 @@ function CollapsedSet({ set, label, onExpand, onToggleDone, onPressType }: Props
         </Text>
       </Pressable>
 
-      <CheckButton done={set.done} label={label} onPress={() => onToggleDone(false)} />
+      {onToggleDone ? <CheckButton done={set.done} label={label} onPress={() => onToggleDone(false)} /> : null}
     </Animated.View>
   );
 }
@@ -187,7 +190,7 @@ function ExpandedSet({ set, label, onCollapse, onChange, onToggleDone, onPressTy
         onChange={(r) => onChange({ reps: r, weightKg: weight })}
       />
 
-      {set.done ? (
+      {!onToggleDone ? null : set.done ? (
         <Button label="Mark not done" variant="secondary" onPress={() => onToggleDone(true)} />
       ) : (
         <Pressable

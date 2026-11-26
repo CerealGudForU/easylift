@@ -14,6 +14,7 @@ import { deleteWorkout, renameWorkout } from '@/lib/data/actions';
 import { exercisesOf, newBests, setsOf, useWorkoutData, workoutStats } from '@/lib/data/queries';
 import { equipmentLabel } from '@/lib/exercise-labels';
 import { formatDuration, formatNumber, formatWorkoutDate } from '@/lib/format';
+import { formatMetric, formatRecordSet, RECORD_LABEL } from '@/lib/progress-labels';
 import { fonts, radius, size, space, useColors } from '@/theme';
 
 export default function WorkoutDetailScreen() {
@@ -39,7 +40,7 @@ export default function WorkoutDetailScreen() {
       exercises: exercisesOf(id).map((we) => {
         const sets = setsOf(we.id).filter((s) => s.completed_at);
         const ex = data.e.get(we.exercise_id);
-        return { id: we.id, name: ex?.name ?? 'Exercise', equipment: ex?.equipment ?? null, sets };
+        return { id: we.id, exerciseId: we.exercise_id, name: ex?.name ?? 'Exercise', equipment: ex?.equipment ?? null, sets };
       }),
     };
   }, [data, id]);
@@ -113,19 +114,32 @@ export default function WorkoutDetailScreen() {
 
         {bests.length ? (
           <View style={[styles.card, { backgroundColor: c.surface }]}>
-            <Text variant="caption" tone="textSecondary">
-              NEW BESTS
-            </Text>
-            {bests.map((b) => (
-              <View key={b.exerciseId + b.kind} style={styles.bestRow}>
-                <Icon name="trophy" size={20} color={c.accent} />
-                <Text variant="body" style={styles.flex} numberOfLines={1}>
-                  {b.name}
-                </Text>
-                <Text variant="stat">
-                  {b.kind === 'weight' ? `${formatNumber(b.value)} kg` : `${formatNumber(b.value)} kg e1RM`}
-                </Text>
-              </View>
+            <View style={styles.bestHead}>
+              <Icon name="trophy" size={20} color={c.accent} />
+              <Text variant="caption" tone="textSecondary">
+                {bests.length === 1 ? 'NEW PERSONAL RECORD' : `${bests.length} NEW PERSONAL RECORDS`}
+              </Text>
+            </View>
+            {bests.map((b, i) => (
+              <Pressable
+                key={b.exerciseId + b.kind}
+                onPress={() => router.push({ pathname: '/exercises/[id]', params: { id: b.exerciseId } })}
+                accessibilityRole="button"
+                accessibilityLabel={`${b.name}, ${RECORD_LABEL[b.kind]} ${formatMetric(b.kind, b.value)}`}
+                style={({ pressed }) => [styles.bestRow, { opacity: pressed ? 0.7 : 1 }]}>
+                <View style={styles.flex}>
+                  {i === 0 || bests[i - 1].exerciseId !== b.exerciseId ? (
+                    <Text variant="headline" numberOfLines={1}>
+                      {b.name}
+                    </Text>
+                  ) : null}
+                  <Text variant="label" tone="textSecondary">
+                    {RECORD_LABEL[b.kind]}
+                    {formatRecordSet(b) ? ` · ${formatRecordSet(b)}` : ''}
+                  </Text>
+                </View>
+                <Text variant="stat">{formatMetric(b.kind, b.value)}</Text>
+              </Pressable>
             ))}
           </View>
         ) : null}
@@ -134,14 +148,21 @@ export default function WorkoutDetailScreen() {
           const labels = setLabels(x.sets.map((s) => ({ id: s.id, type: s.set_type, weightKg: null, reps: null, done: true })));
           return (
             <View key={x.id} style={[styles.card, { backgroundColor: c.surface }]}>
-              <View>
-                <Text variant="exercise" tone="accent" numberOfLines={2}>
-                  {x.name}
-                </Text>
-                <Text variant="label" tone="textMuted">
-                  {equipmentLabel(x.equipment)}
-                </Text>
-              </View>
+              <Pressable
+                onPress={() => router.push({ pathname: '/exercises/[id]', params: { id: x.exerciseId } })}
+                accessibilityRole="button"
+                accessibilityLabel={`${x.name}, see progress`}
+                style={({ pressed }) => [styles.exHead, { opacity: pressed ? 0.7 : 1 }]}>
+                <View style={styles.flex}>
+                  <Text variant="exercise" tone="accent" numberOfLines={2}>
+                    {x.name}
+                  </Text>
+                  <Text variant="label" tone="textMuted">
+                    {equipmentLabel(x.equipment)}
+                  </Text>
+                </View>
+                <Icon name="chart-line" size={20} color={c.textMuted} />
+              </Pressable>
               {x.sets.map((s, i) => (
                 <View key={s.id} style={styles.setRow}>
                   <Text
@@ -215,7 +236,9 @@ const styles = StyleSheet.create({
   stats: { flexDirection: 'row', justifyContent: 'space-around', borderRadius: radius.card, paddingVertical: space.lg },
   stat: { alignItems: 'center', gap: 2 },
   card: { borderRadius: radius.card, borderCurve: 'continuous', padding: space.md, gap: space.sm },
-  bestRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 36 },
+  bestHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  bestRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 44 },
+  exHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   setRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 32 },
   setLabel: { width: 28, fontSize: 18, textAlign: 'center' },
 });

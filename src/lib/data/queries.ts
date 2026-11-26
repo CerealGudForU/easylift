@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 import { byPosition } from './order';
 import { getTable, liveRows, useTable } from './store';
+import { personalRecords, RECORD_KINDS, recordsSetIn, type PersonalRecord, type RecordKind, type Session } from '../progress';
 import type { ExerciseRow, Local, WorkoutExerciseRow, WorkoutRow, WorkoutSetRow } from './types';
 
 function indexed<T extends { id: string }, K>(
@@ -111,45 +112,89 @@ export function workoutStats(workoutId: string): WorkoutStats {
   return { durationS, volumeKg, sets, exercises };
 }
 
-/** Epley estimated one-rep max. */
-export const e1rm = (weightKg: number, reps: number) => (reps <= 0 ? 0 : reps === 1 ? weightKg : weightKg * (1 + reps / 30));
-
-export type Best = { exerciseId: string; name: string; kind: 'e1rm' | 'weight'; value: number };
-
-/**
- * New bests in this workout compared with every earlier finished workout:
- * heaviest weight and best estimated 1RM, per exercise. (Phase 5 stores these.)
- */
-export function newBests(workoutId: string): Best[] {
-  const w = getTable('workouts').get(workoutId);
-  if (!w) return [];
+/** A finished workout's completed sets for one exercise, as progress maths takes them. */
+function sessionsFor(exerciseId: string): Session[] {
   const workouts = getTable('workouts');
+  const uses = indexed(byExerciseCache, getTable('workout_exercises'), (x) => x.exercise_id).get(exerciseId) ?? [];
+  const byWorkout = new Map<string, Session>();
+  for (const we of uses) {
+    const w = workouts.get(we.workout_id);
+    if (!w || w.deleted_at || !w.ended_at) continue;
+    const sets = setsOf(we.id)
+      .filter((s) => s.completed_at)
+      .map((s) => ({ weightKg: s.weight_kg, reps: s.reps, type: s.set_type }));
+    if (!sets.length) continue;
+    // The same exercise twice in one workout counts as one session.
+    const cur = byWorkout.get(w.id);
+    if (cur) cur.sets.push(...sets);
+    else byWorkout.set(w.id, { workoutId: w.id, date: w.started_at, sets });
+  }
+  return [...byWorkout.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+// Keyed on all three tables a session depends on: rebuilt after any change to them.
+let sessionsKey: readonly object[] = [];
+let sessionsCache = new Map<string, Session[]>();
+
+/** Every finished session of an exercise, oldest first. Cached until workout data changes. */
+export function exerciseSessions(exerciseId: string): Session[] {
+  const key = [getTable('workouts'), getTable('workout_exercises'), getTable('workout_sets')];
+  if (key.some((t, i) => t !== sessionsKey[i])) {
+    sessionsKey = key;
+    sessionsCache = new Map();
+  }
+  let list = sessionsCache.get(exerciseId);
+  if (!list) sessionsCache.set(exerciseId, (list = sessionsFor(exerciseId)));
+  return list;
+}
+
+export type Best = PersonalRecord & { exerciseId: string; name: string };
+
+/** Personal records set in this workout, per exercise, compared with every earlier finished workout. */
+export function newBests(workoutId: string): Best[] {
   const exercises = getTable('exercises');
   const out: Best[] = [];
+  const seen = new Set<string>();
   for (const we of exercisesOf(workoutId)) {
-    const mine = setsOf(we.id).filter((s) => s.completed_at && s.set_type !== 'warmup' && s.weight_kg && s.reps);
-    if (!mine.length) continue;
-    const top = (sets: WorkoutSetRow[]) => ({
-      weight: Math.max(0, ...sets.map((s) => s.weight_kg ?? 0)),
-      e1rm: Math.max(0, ...sets.map((s) => e1rm(s.weight_kg ?? 0, s.reps ?? 0))),
-    });
-    const now = top(mine);
-    const earlier: WorkoutSetRow[] = [];
-    const uses = indexed(byExerciseCache, getTable('workout_exercises'), (x) => x.exercise_id).get(we.exercise_id) ?? [];
-    for (const other of uses) {
-      const ow = workouts.get(other.workout_id);
-      if (!ow || ow.deleted_at || !ow.ended_at || ow.id === workoutId || ow.started_at >= w.started_at) continue;
-      earlier.push(...setsOf(other.id).filter((s) => s.completed_at && s.set_type !== 'warmup'));
-    }
-    if (!earlier.length) continue; // first time: nothing to beat
-    const before = top(earlier);
+    if (seen.has(we.exercise_id)) continue;
+    seen.add(we.exercise_id);
     const name = exercises.get(we.exercise_id)?.name ?? 'Exercise';
-    if (now.weight > before.weight) out.push({ exerciseId: we.exercise_id, name, kind: 'weight', value: now.weight });
-    else if (now.e1rm > before.e1rm + 0.01)
-      out.push({ exerciseId: we.exercise_id, name, kind: 'e1rm', value: Math.round(now.e1rm * 10) / 10 });
+    for (const r of recordsSetIn(exerciseSessions(we.exercise_id), workoutId)) {
+      out.push({ ...r, exerciseId: we.exercise_id, name });
+    }
   }
   return out;
 }
+
+export type PerformedExercise = {
+  exercise: Local<ExerciseRow>;
+  sessions: number;
+  lastDate: string;
+  /** All-time best per record kind (0 where there's none). */
+  best: Record<RecordKind, number>;
+};
+
+/** Exercises you've logged in a finished workout, most recently done first. */
+export function usePerformedExercises(): PerformedExercise[] {
+  const data = useWorkoutData();
+  return useMemo(() => {
+    const out: PerformedExercise[] = [];
+    const ids = new Set<string>();
+    for (const we of liveRows(data.x)) ids.add(we.exercise_id);
+    for (const id of ids) {
+      const exercise = data.e.get(id);
+      if (!exercise) continue;
+      const sessions = exerciseSessions(id);
+      if (!sessions.length) continue;
+      const prs = personalRecords(sessions);
+      const best = { weight: 0, e1rm: 0, setVolume: 0, volume: 0, reps: 0 };
+      for (const k of RECORD_KINDS) best[k] = prs[k]?.value ?? 0;
+      out.push({ exercise, sessions: sessions.length, lastDate: sessions[sessions.length - 1].date, best });
+    }
+    return out.sort((a, b) => (a.lastDate < b.lastDate ? 1 : -1));
+  }, [data]);
+}
+
 
 /** Finished workouts, newest first. */
 export function useHistory(): Local<WorkoutRow>[] {
@@ -163,7 +208,24 @@ export function useHistory(): Local<WorkoutRow>[] {
   );
 }
 
+/** Per finished workout: when, and its totals (for weekly charts and the calendar). Newest first. */
+export function useWorkoutSummaries(): (WorkoutStats & { id: string; title: string; startedAt: string })[] {
+  const history = useHistory();
+  const data = useWorkoutData();
+  return useMemo(() => {
+    dependsOn(data); // recompute when workout data changes
+    return history.map((w) => ({ id: w.id, title: w.title, startedAt: w.started_at, ...workoutStats(w.id) }));
+  }, [history, data]);
+}
+
 export function useExercises(): Local<ExerciseRow>[] {
   const t = useTable('exercises');
   return useMemo(() => [...liveRows(t)].sort((a, b) => a.name.localeCompare(b.name)), [t]);
 }
+
+/**
+ * Marks a memo as depending on store tables that the helpers it calls read through
+ * getTable() (setsOf, workoutStats, exerciseSessions…). Use it instead of `void data`:
+ * the React Compiler drops a bare `void x` and the memo would then never recompute.
+ */
+export function dependsOn(..._tables: unknown[]): void {}

@@ -11,6 +11,7 @@ import { Text } from '@/components/ui/text';
 import { addExercisesToWorkout } from '@/lib/data/actions';
 import { useExercises } from '@/lib/data/queries';
 import { equipmentLabel, EQUIPMENT_OPTIONS, muscleLabel, MUSCLE_OPTIONS } from '@/lib/exercise-labels';
+import { goBack } from '@/lib/nav';
 import { pickResult } from '@/lib/pick-result';
 import { fonts, radius, size, space, useColors } from '@/theme';
 
@@ -53,7 +54,7 @@ export default function PickExercisesScreen() {
     else pickResult.set(selected);
     // "New routine" starts here; the editor opens with the picks, in this screen's place.
     if (params.for === 'routine' && params.new === '1') router.replace({ pathname: '/routine/[id]', params: { id: 'new' } });
-    else router.back();
+    else goBack();
   };
 
   return (
@@ -62,7 +63,7 @@ export default function PickExercisesScreen() {
       behavior="padding"
       style={[styles.screen, { backgroundColor: c.bg, paddingTop: insets.top + space.sm }]}>
       <View style={styles.top}>
-        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+        <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <Icon name="close" size={26} color={c.textSecondary} />
         </Pressable>
         <Text variant="title" style={styles.flex}>

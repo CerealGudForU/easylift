@@ -68,6 +68,9 @@ function RootNavigator() {
           <Stack.Screen name="workout/[id]" />
           <Stack.Screen name="exercises/pick" options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="exercises/new" />
+          <Stack.Screen name="exercises/all" />
+          <Stack.Screen name="exercises/[id]" />
+          <Stack.Screen name="calendar" />
           <Stack.Screen name="routine/[id]" options={{ animation: 'slide_from_bottom' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

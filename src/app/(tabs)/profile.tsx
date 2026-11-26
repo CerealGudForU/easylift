@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionSheet } from '@/components/ui/action-sheet';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
+import { Icon, type IconName } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { signOut } from '@/lib/auth';
-import { exercisesOf, useHistory, useWorkoutData, workoutStats } from '@/lib/data/queries';
+import { WeeklyCard } from '@/components/progress/weekly-card';
+import { dependsOn, exercisesOf, useHistory, useWorkoutData, useWorkoutSummaries, workoutStats } from '@/lib/data/queries';
 import { useSyncStatus } from '@/lib/data/sync';
 import { formatDuration, formatNumber, formatWorkoutDate } from '@/lib/format';
+import { weekStreak } from '@/lib/progress';
 import { useUsername } from '@/lib/session';
 import { radius, space, useColors } from '@/theme';
 
@@ -21,10 +23,12 @@ export default function ProfileScreen() {
   const history = useHistory();
   const data = useWorkoutData();
   const sync = useSyncStatus();
+  const summaries = useWorkoutSummaries();
+  const streak = useMemo(() => weekStreak(summaries.map((w) => w.startedAt)), [summaries]);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const rows = useMemo(() => {
-    void data;
+    dependsOn(data); // recompute when workout data changes
     return history.map((w) => ({
       id: w.id,
       title: w.title,
@@ -70,6 +74,23 @@ export default function ProfileScreen() {
           {syncText}
         </Text>
       </View>
+      {history.length > 0 ? (
+        <>
+          <Text variant="headline" style={styles.section}>
+            Progress
+          </Text>
+          <WeeklyCard workouts={summaries} />
+          <View style={styles.tiles}>
+            <Tile icon="chart-line" label="Exercises" detail="PRs and charts" onPress={() => router.push('/exercises/all')} />
+            <Tile
+              icon="calendar-month-outline"
+              label="Calendar"
+              detail={streak > 0 ? `${streak}-week streak` : 'Your training days'}
+              onPress={() => router.push('/calendar')}
+            />
+          </View>
+        </>
+      ) : null}
       <Text variant="headline" style={styles.section}>
         History
       </Text>
@@ -136,6 +157,25 @@ export default function ProfileScreen() {
   );
 }
 
+function Tile({ icon, label, detail, onPress }: { icon: IconName; label: string; detail: string; onPress: () => void }) {
+  const c = useColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${detail}`}
+      style={({ pressed }) => [styles.tile, { backgroundColor: c.surface, opacity: pressed ? 0.85 : 1 }]}>
+      <Icon name={icon} size={24} color={c.accent} />
+      <View style={styles.flex}>
+        <Text variant="headline">{label}</Text>
+        <Text variant="caption" tone="textMuted" numberOfLines={1}>
+          {detail}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function MiniStat({ icon, value }: { icon: 'clock-outline' | 'weight-kilogram' | 'format-list-numbered'; value: string }) {
   const c = useColors();
   return (
@@ -162,4 +202,6 @@ const styles = StyleSheet.create({
   workoutHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   statsRow: { flexDirection: 'row', gap: space.lg, marginTop: space.xs },
   mini: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  tiles: { flexDirection: 'row', gap: space.md },
+  tile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, padding: space.lg, borderRadius: radius.card, borderCurve: 'continuous', minHeight: 72 },
 });

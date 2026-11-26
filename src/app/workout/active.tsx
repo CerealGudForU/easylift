@@ -25,21 +25,13 @@ import {
   setRestSeconds,
   updateSet,
 } from '@/lib/data/actions';
-import { exercisesOf, lastPerformance, setsOf, useActiveWorkout, useWorkoutData } from '@/lib/data/queries';
+import { dependsOn, exercisesOf, lastPerformance, setsOf, useActiveWorkout, useWorkoutData } from '@/lib/data/queries';
 import { equipmentLabel } from '@/lib/exercise-labels';
 import { restTimer, useRest } from '@/lib/rest-timer';
 import { space, useColors } from '@/theme';
 
 /** chosenId value meaning "no set open" (the user closed it). */
 const COLLAPSED = '__collapsed__';
-
-function nextUndoneAfter(exercises: WorkoutExercise[], setId: string): string | null {
-  const all = exercises.flatMap((x) => x.sets);
-  const i = all.findIndex((s) => s.id === setId);
-  const after = all.slice(i + 1).find((s) => !s.done);
-  const before = all.slice(0, i).find((s) => !s.done);
-  return (after ?? before)?.id ?? null;
-}
 
 type Sheet = { title?: string; message?: string; actions: SheetAction[] } | null;
 
@@ -54,7 +46,7 @@ export default function ActiveWorkoutScreen() {
   const [leaving, setLeaving] = useState(false);
 
   const exercises: WorkoutExercise[] = useMemo(() => {
-    void data; // recompute whenever workout data changes
+    dependsOn(data); // recompute when workout data changes
     if (!active) return [];
     return exercisesOf(active.id).map((we) => {
       const ex = data.e.get(we.exercise_id);
@@ -105,12 +97,10 @@ export default function ActiveWorkoutScreen() {
     return { volume, doneSets, prevVolume };
   }, [exercises]);
 
-  const [chosenId, setChosenId] = useState<string | null>(null);
-  const nextUndoneId = useMemo(() => {
-    for (const x of exercises) for (const s of x.sets) if (!s.done) return s.id;
-    return null;
-  }, [exercises]);
-  const expandedId = chosenId === COLLAPSED ? null : (chosenId ?? nextUndoneId);
+  // Sets only open when you tap them: never on opening or starting a workout, and
+  // completing a set from its panel just closes it (the next set stays closed).
+  const [chosenId, setChosenId] = useState<string>(COLLAPSED);
+  const expandedId = chosenId === COLLAPSED ? null : chosenId;
 
   const toggleSet = (x: WorkoutExercise, setId: string, fromPanel: boolean) => {
     const s = x.sets.find((it) => it.id === setId);
@@ -125,7 +115,8 @@ export default function ActiveWorkoutScreen() {
       return;
     }
     setDone(setId, completing, { weightKg: weightKg ?? 0, reps: reps ?? 0 });
-    if (fromPanel) setChosenId(completing ? nextUndoneAfter(exercises, setId) : setId);
+    // From the panel: completing closes it; un-completing keeps it open to edit.
+    if (fromPanel) setChosenId(completing ? COLLAPSED : setId);
     else setChosenId(expandedId ?? COLLAPSED);
     // Drop sets chain straight into the next set, so they don't start rest.
     if (completing && s.type !== 'drop' && x.restSeconds > 0) restTimer.start(x.restSeconds);

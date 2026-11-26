@@ -13,7 +13,8 @@ import { setLabels, type WorkoutExercise, type WorkoutSet } from './types';
 type Props = {
   exercise: WorkoutExercise;
   onChangeSet: (setId: string, patch: Partial<WorkoutSet>) => void;
-  onToggleSet: (setId: string, fromPanel: boolean) => void;
+  /** Leave out when planning a routine: sets have no checkbox. */
+  onToggleSet?: (setId: string, fromPanel: boolean) => void;
   onPressSetType: (setId: string) => void;
   expandedSetId: string | null;
   onExpandSet: (setId: string) => void;
@@ -69,7 +70,7 @@ export function ExerciseCard({
         <Text variant="caption" tone="textMuted" style={styles.colField}>
           REPS
         </Text>
-        <View style={styles.colCheck} />
+        {onToggleSet ? <View style={styles.colCheck} /> : null}
       </View>
 
       <View style={styles.sets}>
@@ -82,7 +83,7 @@ export function ExerciseCard({
             onExpand={() => onExpandSet(s.id)}
             onCollapse={onCollapseSet}
             onChange={(patch) => onChangeSet(s.id, patch)}
-            onToggleDone={(fromPanel) => onToggleSet(s.id, fromPanel ?? false)}
+            onToggleDone={onToggleSet ? (fromPanel) => onToggleSet(s.id, fromPanel ?? false) : undefined}
             onPressType={() => onPressSetType(s.id)}
             onDelete={onDeleteSet ? () => onDeleteSet(s.id) : undefined}
           />

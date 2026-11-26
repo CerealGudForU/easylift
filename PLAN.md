@@ -184,7 +184,7 @@ push tag v1.2.0 ──► GitHub Actions ──► signed APK ──► GitHub R
 | 2 | **Design system**: tokens, type, icons (one icon set, e.g. Lucide/Phosphor, no emoji), core components (SetRow, NumericStepper, RestTimer, ExerciseCard, Sheet) | ui-ux-pro-max, appllama-app-design-skill | `design/MASTER.md` + component gallery screen in light and dark |
 | 3 | **Backend + auth**: migrations, RLS, exercise seed, username/password sign-up/in, admin reset script | Supabase MCP/CLI | Advisors clean; RLS tests pass; sign up → sign in works on phone + web |
 | 4 | **Core loop**: library → routine builder → active workout → summary → history | all | A full workout can be logged offline on Android and web and syncs (done 2026-11-26, see §7.1) |
-| 5 | **Progress**: PRs, charts, calendar, per-exercise history | ui-ux-pro-max `--domain chart` | Charts readable, accessible, correct against fixtures |
+| 5 | **Progress**: PRs, charts, calendar, per-exercise history | ui-ux-pro-max `--domain chart` | Charts readable, accessible, correct against fixtures (done 2026-11-26, see §7.2) |
 | 6 | **Friends + feed**: username search, requests, feed, likes, comments, notifications, share card | all | Feed paginates; private/non-friend workouts never leak (RLS test) |
 | 7 | **PWA + deploy**: manifest, SW, iOS install flow, Cloudflare connected to GitHub | — | Push to main → live at easylift.cerealgudforu.workers.dev; installed on a real iPhone, works in airplane mode |
 | 8 | **Android release pipeline**: icons, splash, keystore, Actions release workflow, in-app updater | — | Tag v0.1.0 → APK on GitHub Releases → installs on your phone; tag v0.1.1 → the app offers the update and it installs over v0.1.0 |
@@ -194,6 +194,13 @@ push tag v1.2.0 ──► GitHub Actions ──► signed APK ──► GitHub R
 - **Workout tab**: floating "Start Workout" button; routines list with "Start routine". "New routine" opens the exercise picker first; the name is optional (blank = named after its main muscles, e.g. "Chest & Shoulders").
 - **Active workout**: previous values from the last session, suggested values from the set above when there's no history, rest timer that survives minimising, "workout in progress" bar above the tabs, finish drops unfinished sets.
 - Not in Phase 4 yet: supersets, RPE, exercise notes, timed/distance logging (cardio is logged as weight × reps), drag reordering (exercises move up/down from their menu), kg/lb setting.
+
+### 7.2 Phase 5 notes (2026-11-26)
+- **Progress maths** live in `src/lib/progress.ts` (pure, no store): Epley e1RM, per-session metrics (warm-ups excluded), all-time records (heaviest weight, est. 1RM, best set, session volume, most reps; the first session to reach a value holds it), records set in a given workout, chart series, weekly totals, week streak and the Monday-first month grid. `npm test` runs the Vitest fixtures in `progress.test.ts`.
+- **PRs are computed on the device** from synced sets, not stored: no `personal_records` rows, so offline edits and deleted workouts can never leave a stale record. The friends feed (Phase 6) can compute "PRs hit" the same way, or add a server-side copy then.
+- **Screens**: Profile shows a 12-week bar chart (workouts / volume / time) plus Exercises and Calendar tiles; `/exercises/all` lists logged exercises with their best; `/exercises/[id]` has a line chart (est. 1RM, heaviest, best set, volume, reps; 1M/3M/1Y/All), personal records and full history; `/calendar` has the month grid, streak and the chosen day's workouts. The workout summary lists every new record per exercise, and exercise names open their progress.
+- **Charts** are `react-native-svg` (`src/components/charts/`), one series each in the accent colour (no legend; the title and caption name it), tap or drag to read a point, and an accessibility label summarising the data. The session history under each chart is its table view.
+- Memos that read the store through helpers must call `dependsOn(data)`, not `void data`: the React Compiler drops a bare `void` and the memo goes stale.
 
 **Per-screen definition of done** (Appllama + UI UX Pro Max combined): light/dark, safe areas, empty/loading/error/long-content states, 44px targets, large text, reduced motion respected, motion checked in an emulator screen recording, works offline.
 
