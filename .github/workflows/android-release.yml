@@ -26,7 +26,6 @@ jobs:
     env:
       EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +84,7 @@ jobs:
           EASYLIFT_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           EASYLIFT_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           EASYLIFT_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --no-daemon
+        run: NODE_ENV=production ./gradlew assembleRelease --no-daemon
 
       - name: Check the signature and version
         run: |
