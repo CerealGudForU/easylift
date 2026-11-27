@@ -54,7 +54,7 @@ export function ExerciseCard({
 
       <View style={styles.chips}>
         <RestChip seconds={exercise.restSeconds} onChange={onChangeRest} />
-        <Chip label={exercise.equipment} muted />
+        {exercise.equipment ? <Chip label={exercise.equipment} muted /> : null}
       </View>
 
       <View style={styles.columns}>

@@ -88,7 +88,9 @@ export default function ExerciseProgressScreen() {
     );
   }
 
-  const subtitle = [equipmentLabel(exercise.equipment), muscleLabel(exercise.primary_muscle)].filter(Boolean).join(' · ');
+  const subtitle = [exercise.equipment && equipmentLabel(exercise.equipment), exercise.primary_muscle && muscleLabel(exercise.primary_muscle)]
+    .filter(Boolean)
+    .join(' · ');
   const openWorkout = (workoutId: string) => router.push({ pathname: '/workout/[id]', params: { id: workoutId } });
 
   const summary =

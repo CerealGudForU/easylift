@@ -1,11 +1,11 @@
-// Every exercise you've logged, most recent first, with its best. Opens its progress.
+// Statistics tab: every exercise you've logged, most recent first, with its best.
+// Opens its progress (PRs and charts).
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
 import { usePerformedExercises } from '@/lib/data/queries';
 import { equipmentLabel } from '@/lib/exercise-labels';
@@ -13,7 +13,7 @@ import { formatWorkoutDate } from '@/lib/format';
 import { formatMetric } from '@/lib/progress-labels';
 import { fonts, radius, size, space, useColors } from '@/theme';
 
-export default function ExercisesProgressScreen() {
+export default function StatisticsScreen() {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const all = usePerformedExercises();
@@ -29,16 +29,15 @@ export default function ExercisesProgressScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
-      <ScreenHeader />
       <FlatList
         data={list}
         keyExtractor={(x) => x.exercise.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xxxl }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space.lg, paddingBottom: space.huge }]}
         ListHeaderComponent={
           <View style={styles.head}>
             <Text variant="title" accessibilityRole="header">
-              Exercises
+              Statistics
             </Text>
             {all.length > 0 ? (
               <View style={[styles.search, { backgroundColor: c.field }]}>

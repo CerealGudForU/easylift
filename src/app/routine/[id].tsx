@@ -121,7 +121,7 @@ export default function RoutineEditorScreen() {
       return {
         id: x.id,
         name: ex?.name ?? 'Exercise',
-        equipment: equipmentLabel(ex?.equipment ?? null),
+        equipment: ex?.equipment ? equipmentLabel(ex.equipment) : '',
         restSeconds: x.restSeconds,
         sets: x.sets.map((s, i, all) => {
           const p = last?.sets[i];

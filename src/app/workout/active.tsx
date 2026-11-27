@@ -66,7 +66,7 @@ export default function ActiveWorkoutScreen() {
       return {
         id: we.id,
         name: ex?.name ?? 'Exercise',
-        equipment: equipmentLabel(ex?.equipment ?? null),
+        equipment: ex?.equipment ? equipmentLabel(ex.equipment) : '',
         restSeconds: we.rest_seconds ?? 90,
         sets: (() => {
           // A set with no history is suggested the values of the set above it (its own

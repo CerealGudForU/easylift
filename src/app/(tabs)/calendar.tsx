@@ -6,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
-import { ScreenHeader } from '@/components/ui/screen-header';
 import { Text } from '@/components/ui/text';
 import { useWorkoutSummaries } from '@/lib/data/queries';
 import { formatDuration, formatNumber } from '@/lib/format';
@@ -68,8 +67,7 @@ export default function CalendarScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: c.bg }]}>
-      <ScreenHeader />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space.xxxl }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space.lg, paddingBottom: space.huge }]}>
         <Text variant="title" accessibilityRole="header">
           Calendar
         </Text>

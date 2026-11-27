@@ -198,7 +198,9 @@ export default function PickExercisesScreen() {
                   {item.name}
                 </Text>
                 <Text variant="label" tone="textMuted" numberOfLines={1}>
-                  {muscleLabel(item.primary_muscle)} · {equipmentLabel(item.equipment)}
+                  {[item.primary_muscle && muscleLabel(item.primary_muscle), item.equipment && equipmentLabel(item.equipment)]
+                    .filter(Boolean)
+                    .join(' · ') || 'Custom exercise'}
                   {item.owner_id ? ' · Custom' : ''}
                 </Text>
               </View>

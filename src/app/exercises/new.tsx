@@ -1,4 +1,5 @@
 // Create a custom exercise (it syncs, and friends see its name on your workouts).
+// Only the name is required; tap a selected chip again to clear it.
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -26,11 +27,12 @@ export default function NewExerciseScreen() {
   const duplicate = all.some(
     (x) => x.name.toLowerCase() === clean.toLowerCase() && (x.equipment ?? null) === equipment,
   );
-  const ready = clean.length > 0 && !!muscle && !!equipment && !duplicate;
+  // Only the name is required; main muscle and equipment are optional.
+  const ready = clean.length > 0 && !duplicate;
 
   const save = () => {
     if (!ready) return;
-    createExercise({ name: clean, primaryMuscle: muscle!, equipment: equipment! });
+    createExercise({ name: clean, primaryMuscle: muscle, equipment });
     router.back();
   };
 
@@ -59,14 +61,14 @@ export default function NewExerciseScreen() {
           returnKeyType="done"
           hint={duplicate ? { text: 'You already have an exercise with this name and equipment.', tone: 'danger' } : null}
         />
-        <Section title="Main muscle">
+        <Section title="Main muscle (optional)">
           {MUSCLE_OPTIONS.map((m) => (
-            <Chip key={m} label={muscleLabel(m)} selected={muscle === m} onPress={() => setMuscle(m)} />
+            <Chip key={m} label={muscleLabel(m)} selected={muscle === m} onPress={() => setMuscle(muscle === m ? null : m)} />
           ))}
         </Section>
-        <Section title="Equipment">
+        <Section title="Equipment (optional)">
           {EQUIPMENT_OPTIONS.map((e) => (
-            <Chip key={e} label={equipmentLabel(e)} selected={equipment === e} onPress={() => setEquipment(e)} />
+            <Chip key={e} label={equipmentLabel(e)} selected={equipment === e} onPress={() => setEquipment(equipment === e ? null : e)} />
           ))}
         </Section>
       </ScrollView>

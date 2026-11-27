@@ -15,6 +15,7 @@ export type WorkoutSet = {
 export type WorkoutExercise = {
   id: string;
   name: string;
+  /** Equipment label, or "" when the exercise has none. */
   equipment: string;
   restSeconds: number;
   sets: WorkoutSet[];

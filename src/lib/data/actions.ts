@@ -329,7 +329,12 @@ export function draftExercise(exerciseId: string): RoutineDraft['exercises'][num
 
 // --- Exercises -------------------------------------------------------------------
 
-export function createExercise(input: { name: string; equipment: string; primaryMuscle: string; kind?: ExerciseKind }) {
+export function createExercise(input: {
+  name: string;
+  equipment: string | null;
+  primaryMuscle: string | null;
+  kind?: ExerciseKind;
+}) {
   const id = uuid();
   write((tx) =>
     tx.put('exercises', {

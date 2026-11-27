@@ -81,9 +81,7 @@ function RootNavigator() {
             })}
           />
           <Stack.Screen name="exercises/new" />
-          <Stack.Screen name="exercises/all" />
           <Stack.Screen name="exercises/[id]" />
-          <Stack.Screen name="calendar" />
           <Stack.Screen name="routine/[id]" />
           <Stack.Screen name="friends" />
           <Stack.Screen name="notifications" />

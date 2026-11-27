@@ -17,7 +17,9 @@ import { Text } from './text';
 
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: 'Feed', icon: 'account-group-outline' },
+  calendar: { label: 'Calendar', icon: 'calendar-month-outline' },
   workout: { label: 'Workout', icon: 'dumbbell' },
+  stats: { label: 'Statistics', icon: 'chart-line' },
   profile: { label: 'Profile', icon: 'account-outline' },
 };
 

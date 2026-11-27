@@ -188,9 +188,11 @@ export default function WorkoutDetailScreen() {
                   <Text variant="exercise" tone="accent" numberOfLines={2}>
                     {x.name}
                   </Text>
-                  <Text variant="label" tone="textMuted">
-                    {equipmentLabel(x.equipment)}
-                  </Text>
+                  {x.equipment ? (
+                    <Text variant="label" tone="textMuted">
+                      {equipmentLabel(x.equipment)}
+                    </Text>
+                  ) : null}
                 </View>
                 <Icon name="chart-line" size={20} color={c.textMuted} />
               </Pressable>

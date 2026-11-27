@@ -102,9 +102,11 @@ export default function PostScreen() {
               <Text variant="exercise" tone="accent" numberOfLines={2}>
                 {x.name}
               </Text>
-              <Text variant="label" tone="textMuted">
-                {equipmentLabel(x.equipment)}
-              </Text>
+              {x.equipment ? (
+                <Text variant="label" tone="textMuted">
+                  {equipmentLabel(x.equipment)}
+                </Text>
+              ) : null}
               {x.sets.map((s, i) => (
                 <View key={s.id} style={styles.setRow}>
                   <Text variant="numeric" tone="textSecondary" style={styles.setLabel}>
