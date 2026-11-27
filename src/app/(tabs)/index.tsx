@@ -25,6 +25,8 @@ export default function FeedScreen() {
   const items = feed.data?.pages.flat() ?? [];
   const requests = friends.data?.filter((f) => f.status === 'received').length ?? 0;
   const hasFriends = friends.data?.some((f) => f.status === 'friends') ?? false;
+  // No connection: the saved copy from last time is shown (or nothing, the first time).
+  const offline = feed.isError || feed.isPaused;
 
   // Coming back to the tab (e.g. after finishing a workout) picks up anything new.
   const { refetch } = feed;
@@ -61,7 +63,17 @@ export default function FeedScreen() {
         keyExtractor={(x) => x.id}
         contentContainerStyle={[styles.list, items.length === 0 && styles.grow]}
         ListHeaderComponent={
-          friendsNow.data?.length ? <FriendsRow friends={friendsNow.data} /> : undefined
+          <>
+            {friendsNow.data?.length ? <FriendsRow friends={friendsNow.data} /> : null}
+            {offline && items.length ? (
+              <View style={[styles.offline, { backgroundColor: c.field }]} accessibilityRole="alert">
+                <Icon name="cloud-off-outline" size={18} color={c.textSecondary} />
+                <Text variant="label" tone="textSecondary" style={styles.flex}>
+                  Offline · showing the feed from your last visit
+                </Text>
+              </View>
+            ) : null}
+          </>
         }
         renderItem={({ item }) => (
           <FeedCard
@@ -88,9 +100,9 @@ export default function FeedScreen() {
           feed.isFetchingNextPage ? <ActivityIndicator color={c.accent} style={styles.footer} /> : undefined
         }
         ListEmptyComponent={
-          feed.isPending ? (
+          feed.isPending && !offline ? (
             <ActivityIndicator color={c.accent} style={styles.footer} />
-          ) : feed.isError ? (
+          ) : offline ? (
             <Empty
               icon="cloud-off-outline"
               headline="Can't load the feed"
@@ -172,6 +184,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   list: { padding: space.lg, gap: space.lg },
   grow: { flexGrow: 1 },
+  offline: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md, borderRadius: 10, marginTop: space.md },
   footer: { marginVertical: space.xl },
   headerButton: { width: size.touch, height: size.touch, alignItems: 'center', justifyContent: 'center' },
   badge: {

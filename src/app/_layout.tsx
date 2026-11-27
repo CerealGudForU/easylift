@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { AppError } from '@/components/app-error';
 import { PwaLayer } from '@/components/pwa/pwa-layer';
 import { WebSafeArea } from '@/components/pwa/safe-area';
 import { useDataReady } from '@/lib/data/provider';
@@ -17,6 +18,9 @@ import { SessionProvider, useSession } from '@/lib/session';
 import { useColors, useScheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
+
+// A crash on any screen shows a "Something went wrong · Reload" screen, not a blank one.
+export { AppError as ErrorBoundary };
 
 export default function RootLayout() {
   return (

@@ -49,26 +49,39 @@ const VERSION = ${JSON.stringify(version)};
 const CACHE = 'easylift-' + VERSION;
 const PRECACHE = ${JSON.stringify(urls, null, 2)};
 
-// Download the whole app. A new version waits until the app asks it to take over
-// (the "New version" banner), so it never swaps code in the middle of a workout.
+// How it stays consistent: each version keeps its own cache holding its page ("/") and
+// every file that page can load, including the per-screen code files loaded on demand.
+// Pages always come from the newest complete cache, so a page and its files always match,
+// online or offline. (Loading the page from the network while an older cache was active
+// broke this: in airplane mode, Finish opened the summary screen, whose newer code file
+// wasn't cached, and the app froze on a blank screen.)
+
+// Download the whole new version, then take over straight away. Pages already open keep
+// running their old code; the previous version's cache is kept so they can still load
+// their files. The app shows "New version available" and reloads only when tapped.
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })))),
+    caches
+      .open(CACHE)
+      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
-  // The debug panel asks which version is running.
   if (event.data === 'VERSION') event.ports[0]?.postMessage(VERSION);
 });
 
-// Drop older versions' caches and take control of open pages right away.
+// Keep this version and the one before it; delete anything older.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('easylift-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => {
+        const ours = keys.filter((k) => k.startsWith('easylift-') && k !== CACHE);
+        const keep = new Set([CACHE, ours[ours.length - 1]]);
+        return Promise.all(ours.filter((k) => !keep.has(k)).map((k) => caches.delete(k)));
+      })
       .then(() => self.clients.claim()),
   );
 });
@@ -80,38 +93,31 @@ self.addEventListener('fetch', (event) => {
   // Supabase and anything else off-site go straight to the network.
   if (url.origin !== self.location.origin) return;
 
-  // Every page is the same single-page app. Online, load the latest page from the
-  // network (so a new deploy shows up on the next launch); offline, or if the network
-  // takes over 3 s, use the cached copy.
+  // Every page is the same single-page app: serve this version's cached page, so it
+  // opens instantly and offline and always matches the cached files.
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.open(CACHE).then((cache) => {
-        const network = fetch(request).then((response) => {
-          if (response.ok && !response.redirected) cache.put('/', response.clone());
-          return response;
-        });
-        const fallback = new Promise((resolve) => setTimeout(resolve, 3000)).then(() => cache.match('/'));
-        return Promise.race([network.catch(() => cache.match('/')), fallback]).then(
-          (response) => response || network.catch(() => cache.match('/')).then((r) => r || Response.error()),
-        );
-      }),
+      caches
+        .open(CACHE)
+        .then((cache) => cache.match('/'))
+        .then((page) => page || fetch(request)),
     );
     return;
   }
 
-  // Files are named by their content hash, so a cached copy is always correct.
+  // Files are named by their content hash, so any cached copy (this version's or the
+  // previous one's, for pages still running it) is correct.
   event.respondWith(
-    caches.open(CACHE).then((cache) =>
-      cache.match(request).then(
-        (hit) =>
-          hit ||
-          fetch(request).then((response) => {
-            if (response.ok && (url.pathname.startsWith('/_expo/') || url.pathname.startsWith('/assets/'))) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          }),
-      ),
+    caches.match(request).then(
+      (hit) =>
+        hit ||
+        fetch(request).then((response) => {
+          if (response.ok && (url.pathname.startsWith('/_expo/') || url.pathname.startsWith('/assets/'))) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        }),
     ),
   );
 });

@@ -33,3 +33,11 @@ export function useHoldRepeat(onStep: (dir: 1 | -1) => void) {
   useEffect(() => stop, [stop]);
   return { start, stop };
 }
+
+/**
+ * Spread onto the −/+ Pressables. react-native-web waits 50 ms before firing onPressIn on
+ * touch, and a quick tap (common on iPhone) ends sooner; with no onPress handler the tap
+ * was then lost. `delayPressIn` is react-native-web's prop (React Native's types don't
+ * list it, and native has no such delay).
+ */
+export const pressInNow = { delayPressIn: 0 } as object;

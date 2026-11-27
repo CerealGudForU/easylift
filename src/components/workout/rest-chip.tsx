@@ -6,7 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { formatClock } from '@/lib/format';
 import { haptic } from '@/lib/haptics';
-import { useHoldRepeat } from '@/lib/use-hold-repeat';
+import { pressInNow, useHoldRepeat } from '@/lib/use-hold-repeat';
 import { motion, radius, space, useColors } from '@/theme';
 
 const STEP = 15;
@@ -98,6 +98,7 @@ function StepBtn({
   const c = useColors();
   return (
     <Pressable
+      {...pressInNow}
       onPressIn={onPressIn}
       onPressOut={onPressOut}
       accessibilityRole="button"

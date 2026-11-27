@@ -43,6 +43,11 @@
         -webkit-tap-highlight-color: transparent;
         -webkit-text-size-adjust: 100%;
       }
+      /* Text fields draw their own orange focus border; hide the browser's blue outline on top of it. */
+      input:focus,
+      textarea:focus {
+        outline: none;
+      }
       @media (prefers-color-scheme: light) {
         body {
           background-color: #fafafa;

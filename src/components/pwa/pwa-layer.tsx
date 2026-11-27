@@ -100,55 +100,44 @@ function shouldShowInstallGuide(): boolean {
 
 /**
  * Registers sw.js (production builds only: in development Metro serves changing files).
- * Returns a function that switches to a downloaded update and reloads, or null.
+ * A new version downloads in the background and takes over the service worker at once;
+ * this page keeps running its current code. Returns a reload function once that has
+ * happened (for the "New version available" banner), otherwise null.
  */
 function useServiceWorker(): (() => void) | null {
-  const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
+  const [updated, setUpdated] = useState(false);
 
   useEffect(() => {
     navigator.storage?.persist?.().catch(() => {});
     if (__DEV__ || !('serviceWorker' in navigator)) return;
     const sw = navigator.serviceWorker;
     let reg: ServiceWorkerRegistration | undefined;
-    let reloading = false;
+    // The very first install also takes control, but that isn't an update.
+    let hadController = !!sw.controller;
 
-    // Only an update counts: the first install has no controller and needs no reload.
-    const track = (worker: ServiceWorker | null) => {
-      if (!worker) return;
-      const check = () => {
-        if (worker.state === 'installed' && sw.controller) setWaiting(worker);
-      };
-      check();
-      worker.addEventListener('statechange', check);
+    const onController = () => {
+      if (hadController) setUpdated(true);
+      hadController = true;
     };
-    const onFound = () => track(reg?.installing ?? null);
     // Look for a new version whenever the app comes back to the foreground.
     const onVisible = () => {
       if (document.visibilityState === 'visible') reg?.update().catch(() => {});
-    };
-    const onController = () => {
-      if (reloading) return;
-      reloading = true;
-      location.reload();
     };
 
     sw.register('/sw.js')
       .then((r) => {
         reg = r;
-        track(r.waiting);
-        r.addEventListener('updatefound', onFound);
       })
       .catch(() => {});
     document.addEventListener('visibilitychange', onVisible);
     sw.addEventListener('controllerchange', onController);
     return () => {
-      reg?.removeEventListener('updatefound', onFound);
       document.removeEventListener('visibilitychange', onVisible);
       sw.removeEventListener('controllerchange', onController);
     };
   }, []);
 
-  return waiting ? () => waiting.postMessage('SKIP_WAITING') : null;
+  return updated ? () => location.reload() : null;
 }
 
 /** Keeps the screen on while `on` (Screen Wake Lock API; re-acquired when the app returns). */
