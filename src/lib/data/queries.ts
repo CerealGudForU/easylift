@@ -4,7 +4,16 @@ import { useMemo } from 'react';
 
 import { byPosition } from './order';
 import { getTable, liveRows, useTable } from './store';
-import { personalRecords, RECORD_KINDS, recordsSetIn, type PersonalRecord, type RecordKind, type Session } from '../progress';
+import {
+  personalRecords,
+  recentChange,
+  RECORD_KINDS,
+  recordsSetIn,
+  type PersonalRecord,
+  type RecentChange,
+  type RecordKind,
+  type Session,
+} from '../progress';
 import type { ExerciseRow, Local, WorkoutExerciseRow, WorkoutRow, WorkoutSetRow } from './types';
 
 function indexed<T extends { id: string }, K>(
@@ -172,6 +181,8 @@ export type PerformedExercise = {
   lastDate: string;
   /** All-time best per record kind (0 where there's none). */
   best: Record<RecordKind, number>;
+  /** Heaviest-weight change over the last 30 days (null if not done or nothing to compare). */
+  change: RecentChange | null;
 };
 
 /** Exercises you've logged in a finished workout, most recently done first. */
@@ -189,7 +200,7 @@ export function usePerformedExercises(): PerformedExercise[] {
       const prs = personalRecords(sessions);
       const best = { weight: 0, e1rm: 0, setVolume: 0, volume: 0, reps: 0 };
       for (const k of RECORD_KINDS) best[k] = prs[k]?.value ?? 0;
-      out.push({ exercise, sessions: sessions.length, lastDate: sessions[sessions.length - 1].date, best });
+      out.push({ exercise, sessions: sessions.length, lastDate: sessions[sessions.length - 1].date, best, change: recentChange(sessions) });
     }
     return out.sort((a, b) => (a.lastDate < b.lastDate ? 1 : -1));
   }, [data]);

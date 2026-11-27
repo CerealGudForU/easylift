@@ -29,7 +29,7 @@ const persister = authStorage
 
 // Worth keeping between launches. Search results and per-photo signed URLs (which expire)
 // are not.
-const SAVED = new Set(['feed', 'friends', 'friends-now', 'profile', 'notifications', 'unread', 'post', 'comments']);
+const SAVED = new Set(['feed', 'friends', 'friends-now', 'profile', 'notifications', 'post', 'comments', 'calendar']);
 const shouldSave = (q: Query) => q.state.status === 'success' && SAVED.has(String(q.queryKey[0]));
 
 // Refetch stale queries when the app comes back to the foreground (the browser does this itself).

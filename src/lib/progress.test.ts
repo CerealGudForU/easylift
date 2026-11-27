@@ -6,6 +6,7 @@ import {
   monthGrid,
   niceTicks,
   personalRecords,
+  recentChange,
   recordsSetIn,
   series,
   sessionMetrics,
@@ -169,5 +170,43 @@ describe('niceTicks', () => {
     expect(t[0]).toBeLessThan(60);
     expect(t.at(-1)).toBeGreaterThan(60);
     expect(niceTicks(0, 0).every((v) => v >= 0)).toBe(true);
+  });
+});
+
+describe('recentChange (last 30 days)', () => {
+  const now = new Date('2026-10-30T12:00:00Z');
+
+  it('compares the latest session with the last one before the window', () => {
+    // Window starts Sep 30: w1 (Oct 5) is in it, and there's nothing before, so w1 is the base.
+    const c = recentChange(bench, now);
+    expect(c).toMatchObject({ metric: 'weight', from: 60, to: 65, pct: 8.3, fromDate: bench[0].date });
+  });
+
+  it('uses the session before the window as the base when there is one', () => {
+    const older: Session = { workoutId: 'w0', date: '2026-09-01T18:00:00Z', sets: [set(50, 8)] };
+    expect(recentChange([older, ...bench], now)).toMatchObject({ from: 50, to: 65, pct: 30 });
+  });
+
+  it('is 0 when the weight did not change, and negative when it dropped', () => {
+    const flat: Session[] = [
+      { workoutId: 'a', date: '2026-10-10T18:00:00Z', sets: [set(70, 5)] },
+      { workoutId: 'b', date: '2026-10-20T18:00:00Z', sets: [set(70, 8)] },
+    ];
+    expect(recentChange(flat, now)?.pct).toBe(0);
+    const down: Session[] = [flat[0], { workoutId: 'c', date: '2026-10-25T18:00:00Z', sets: [set(56, 5)] }];
+    expect(recentChange(down, now)?.pct).toBe(-20);
+  });
+
+  it('is null when not done in the window or with only one session', () => {
+    expect(recentChange(bench, new Date('2027-01-30T12:00:00Z'))).toBeNull();
+    expect(recentChange([bench[0]], now)).toBeNull();
+  });
+
+  it('uses reps for bodyweight exercises and ignores warm-ups', () => {
+    const pullups: Session[] = [
+      { workoutId: 'p1', date: '2026-10-10T18:00:00Z', sets: [set(null, 3, 'warmup'), set(null, 8)] },
+      { workoutId: 'p2', date: '2026-10-24T18:00:00Z', sets: [set(null, 10)] },
+    ];
+    expect(recentChange(pullups, now)).toMatchObject({ metric: 'reps', from: 8, to: 10, pct: 25 });
   });
 });

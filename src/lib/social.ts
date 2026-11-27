@@ -62,7 +62,6 @@ export type Post = {
   owner: Person | null;
   exercises: PostExercise[];
   likes: { user_id: string; user: Person | null }[];
-  comments: Comment[];
 };
 
 export type NotificationKind = 'friend_request' | 'friend_accepted' | 'like' | 'comment';
@@ -165,7 +164,8 @@ export function usePost(id: string) {
   return useQuery({
     queryKey: keys.post(id),
     queryFn: async (): Promise<Post | null> => {
-      const [w, ex, likes, comments, photos] = await Promise.all([
+      // Comments load separately (useComments), with their likes.
+      const [w, ex, likes, photos] = await Promise.all([
         supabase
           .from('workouts')
           .select('id, owner_id, title, started_at, ended_at, owner:profiles!workouts_owner_id_fkey(id, username, display_name, avatar_url)')
@@ -180,18 +180,13 @@ export function usePost(id: string) {
           .order('position'),
         supabase.from('likes').select('user_id, user:profiles(id, username, display_name, avatar_url)').eq('workout_id', id),
         supabase
-          .from('comments')
-          .select('id, body, created_at, user_id, user:profiles(id, username, display_name, avatar_url)')
-          .eq('workout_id', id)
-          .order('created_at'),
-        supabase
           .from('workout_photos')
           .select('id, path, width, height, crop_x, crop_y, crop_w, crop_h')
           .eq('workout_id', id)
           .order('position')
           .order('created_at'),
       ]);
-      const workout = must(w) as unknown as Omit<Post, 'exercises' | 'likes' | 'comments' | 'photos'> | null;
+      const workout = must(w) as unknown as Omit<Post, 'exercises' | 'likes' | 'photos'> | null;
       if (!workout) return null;
       type RawEx = {
         id: string;
@@ -207,7 +202,6 @@ export function usePost(id: string) {
           sets: x.sets.filter((s) => s.completed_at && !s.deleted_at).sort((a, b) => a.position - b.position),
         })),
         likes: must(likes) as unknown as Post['likes'],
-        comments: must(comments) as unknown as Comment[],
         photos: must(photos) as unknown as Photo[],
       };
     },
@@ -327,6 +321,27 @@ export function useFriendsNow() {
     queryKey: ['friends-now'],
     refetchInterval: 60_000,
     queryFn: async () => must(await supabase.rpc('friends_now')) as FriendNow[],
+  });
+}
+
+// --- Calendar ---------------------------------------------------------------------
+
+/** A finished workout by you or a friend. `photo` (its first) is only ever set on yours. */
+export type CalendarEntry = {
+  workout_id: string;
+  owner_id: string;
+  username: string;
+  title: string;
+  started_at: string;
+  photo: Photo | null;
+};
+
+/** Your and your friends' finished workouts from `from` up to (not including) `to`. */
+export function useCalendar(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ['calendar', from.toISOString(), to.toISOString()],
+    queryFn: async () =>
+      must(await supabase.rpc('get_calendar', { from_ts: from.toISOString(), to_ts: to.toISOString() } as never)) as CalendarEntry[],
   });
 }
 

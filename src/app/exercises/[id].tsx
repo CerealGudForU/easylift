@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { compact } from '@/components/charts/chart-frame';
 import { LineChart } from '@/components/charts/line-chart';
+import { ChangeBadge } from '@/components/progress/change-badge';
 import { Chip } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -15,7 +16,7 @@ import { setLabels } from '@/components/workout/types';
 import { dependsOn, exerciseSessions, useWorkoutData } from '@/lib/data/queries';
 import { equipmentLabel, muscleLabel } from '@/lib/exercise-labels';
 import { formatNumber, formatWorkoutDate } from '@/lib/format';
-import { personalRecords, RECORD_KINDS, series, type RecordKind } from '@/lib/progress';
+import { personalRecords, recentChange, RECORD_KINDS, series, type RecordKind } from '@/lib/progress';
 import {
   formatMetric,
   formatRecordSet,
@@ -49,6 +50,8 @@ export default function ExerciseProgressScreen() {
     return exerciseSessions(id);
   }, [data, id]);
   const records = useMemo(() => personalRecords(sessions), [sessions]);
+  // Same 30-day change as on the Statistics tab.
+  const change = useMemo(() => recentChange(sessions), [sessions]);
   // Weighted exercises chart strength; bodyweight ones (no weight logged) chart reps.
   const available = useMemo(() => METRICS.filter((k) => records[k]), [records]);
   const [metricChoice, setMetric] = useState<RecordKind | null>(null);
@@ -110,6 +113,9 @@ export default function ExerciseProgressScreen() {
             <Text variant="label" tone="textMuted">
               {subtitle}
             </Text>
+          ) : null}
+          {change ? (
+            <ChangeBadge change={change} suffix={change.metric === 'weight' ? ' heaviest weight in 30 days' : ' most reps in 30 days'} />
           ) : null}
         </View>
 

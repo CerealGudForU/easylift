@@ -152,6 +152,17 @@ begin
   end if;
   select count(*) into n from public.get_feed(null, null, 50, a);
   if n <> 1 then raise exception 'FAIL: feed for one owner should only have A''s visible workout (got %)', n; end if;
+  -- Calendar: A's visible finished workout and B's own two, never A's private or unfinished one,
+  -- and no photo on a friend's row.
+  select count(*) into n from public.get_calendar(now() - interval '1 day', now() + interval '1 hour') k where k.owner_id = a;
+  if n <> 1 then raise exception 'FAIL: friend calendar should have A''s one visible workout (got %)', n; end if;
+  select count(*) into n from public.get_calendar(now() - interval '1 day', now() + interval '1 hour') k where k.owner_id = b;
+  if n <> 2 then raise exception 'FAIL: calendar should have your own workouts (got %)', n; end if;
+  if exists (select 1 from public.get_calendar(now() - interval '1 day', now() + interval '1 hour') k where k.owner_id = a and k.photo is not null) then
+    raise exception 'FAIL: calendar should not carry a friend''s photo';
+  end if;
+  select count(*) into n from public.get_calendar(now() - interval '1 year', now());
+  if n <> 0 then raise exception 'FAIL: calendar should refuse ranges over 100 days (got %)', n; end if;
   -- Comment likes and exercise history.
   insert into public.comment_likes (comment_id) select id from public.comments where workout_id = w_public;
   if not exists (select 1 from public.get_comments(w_public) x where x.body = 'Strong!' and x.like_count = 1 and x.liked) then
@@ -236,6 +247,8 @@ begin
   if n <> 0 then raise exception 'FAIL: stranger should see no photos (saw %)', n; end if;
   select count(*) into n from public.workout_photos where owner_id = a;
   if n <> 0 then raise exception 'FAIL: stranger should see no photo rows (saw %)', n; end if;
+  select count(*) into n from public.get_calendar(now() - interval '1 day', now() + interval '1 hour');
+  if n <> 0 then raise exception 'FAIL: stranger calendar should be empty (got %)', n; end if;
   if (select active_since from public.get_profile(a)) is not null then
     raise exception 'FAIL: stranger should not see that A is working out';
   end if;
@@ -284,6 +297,9 @@ begin
   if n <> 1 then raise exception 'FAIL: owner should see own sets'; end if;
   select count(*) into n from storage.objects where bucket_id = 'workout-photos' and name like a::text || '/%';
   if n <> 2 then raise exception 'FAIL: owner should see both own photos (saw %)', n; end if;
+  -- Owner's calendar: both finished workouts (incl. private, not the unfinished one), with photos.
+  select count(*) into n from public.get_calendar(now() - interval '1 day', now() + interval '1 hour') k where k.owner_id = a and k.photo is not null;
+  if n <> 2 then raise exception 'FAIL: owner calendar should have both finished workouts with their photos (got %)', n; end if;
   select count(*) into n from public.notifications where kind in ('friend_request', 'like', 'comment');
   if n <> 3 then raise exception 'FAIL: A should have request, like and comment notifications (got %)', n; end if;
   if not exists (select 1 from public.list_friends() f where f.id = c and f.status = 'received') then
@@ -338,6 +354,12 @@ begin
   exception when others then failed := true;
   end;
   if not failed then raise exception 'FAIL: anon should not read the feed'; end if;
+  failed := false;
+  begin
+    perform public.get_calendar(now() - interval '1 day', now());
+  exception when others then failed := true;
+  end;
+  if not failed then raise exception 'FAIL: anon should not read the calendar'; end if;
   if public.username_available('RLS_a') then raise exception 'FAIL: taken username (other casing) reported available'; end if;
   if not public.username_available('Rls_New') then raise exception 'FAIL: capitals should be allowed'; end if;
   if not public.username_available('rls_new') then raise exception 'FAIL: free username reported taken'; end if;

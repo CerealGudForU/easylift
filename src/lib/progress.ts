@@ -138,6 +138,42 @@ export function series(sessions: Session[], kind: RecordKind, sinceMs = -Infinit
   return out;
 }
 
+// --- Recent change (Statistics tab) ------------------------------------------------
+
+export type RecentChange = {
+  /** Heaviest weight for weighted exercises; most reps when no weight is ever logged. */
+  metric: 'weight' | 'reps';
+  /** Percentage change, one decimal: +12.5 means 12.5 % up. */
+  pct: number;
+  from: number;
+  to: number;
+  /** The session the change is measured from (the last one before the window, else the window's first). */
+  fromDate: string;
+  toDate: string;
+};
+
+/**
+ * How an exercise's heaviest weight changed over the last `days` days: the latest
+ * session in the window against the last session before it (or, with none before, the
+ * window's first session). Null when the exercise wasn't done in the window or there's
+ * nothing to compare with.
+ */
+export function recentChange(sessions: Session[], now = new Date(), days = 30): RecentChange | null {
+  const since = now.getTime() - days * DAY;
+  const sorted = [...sessions].sort(byDate).filter((s) => sessionMetrics(s.sets).sets > 0);
+  const inWindow = sorted.filter((s) => Date.parse(s.date) >= since);
+  if (!inWindow.length) return null;
+  const before = sorted.filter((s) => Date.parse(s.date) < since).at(-1);
+  const base = before ?? inWindow[0];
+  const last = inWindow[inWindow.length - 1];
+  if (base === last) return null;
+  const metric = sorted.some((s) => sessionMetrics(s.sets).weight > 0) ? 'weight' : 'reps';
+  const from = sessionMetrics(base.sets)[metric];
+  const to = sessionMetrics(last.sets)[metric];
+  if (from <= 0) return null;
+  return { metric, pct: round1(((to - from) / from) * 100), from, to, fromDate: base.date, toDate: last.date };
+}
+
 // --- Weeks, streaks and the calendar (local time, weeks start on Monday) ----------
 
 const DAY = 86_400_000;
