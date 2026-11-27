@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { startWorkout } from '@/lib/data/actions';
 import { byPosition } from '@/lib/data/order';
 import { useActiveWorkout } from '@/lib/data/queries';
 import { liveRows, useTable } from '@/lib/data/store';
@@ -39,9 +38,9 @@ export default function WorkoutTab() {
       });
   }, [routinesT, rexT, rsetT, exT]);
 
+  // The workout screen creates the workout once it's open (see workout/active.tsx).
   const start = (routineId?: string) => {
-    startWorkout(routineId);
-    router.push('/workout/active');
+    router.push({ pathname: '/workout/active', params: routineId ? { start: '1', routine: routineId } : { start: '1' } });
   };
 
   return (

@@ -1,7 +1,7 @@
 // The workout in progress. Everything is saved to the device as you go (and synced),
 // so minimising, closing the app or losing signal never loses a set.
-import { Redirect, router } from 'expo-router';
-import { useCallback, useMemo, useRef, useState, type ComponentRef, type RefObject } from 'react';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ComponentRef, type RefObject } from 'react';
 import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,6 +23,7 @@ import {
   removeWorkoutExercise,
   setDone,
   setRestSeconds,
+  startWorkout,
   updateSet,
 } from '@/lib/data/actions';
 import { dependsOn, exercisesOf, lastPerformance, setsOf, useActiveWorkout, useWorkoutData } from '@/lib/data/queries';
@@ -44,6 +45,17 @@ export default function ActiveWorkoutScreen() {
   const [sheet, setSheet] = useState<Sheet>(null);
   // Set when finishing/discarding, so the screen doesn't redirect while it navigates away.
   const [leaving, setLeaving] = useState(false);
+  // Opened with ?start=1 (and optionally &routine=<id>): this screen creates the workout once
+  // it's showing. Creating it before navigating made the Workout tab redraw ("In progress"
+  // card, bar above the tabs) for a frame before this screen appeared.
+  const params = useLocalSearchParams<{ start?: string; routine?: string }>();
+  const starting = params.start === '1' && !active;
+  // A layout effect runs before the first paint, so the screen never shows empty.
+  useLayoutEffect(() => {
+    if (params.start !== '1') return;
+    startWorkout(params.routine || undefined);
+    router.setParams({ start: undefined, routine: undefined });
+  }, [params.start, params.routine]);
 
   const exercises: WorkoutExercise[] = useMemo(() => {
     dependsOn(data); // recompute when workout data changes
@@ -143,7 +155,7 @@ export default function ActiveWorkoutScreen() {
     });
   }, []);
 
-  if (!active) return leaving ? null : <Redirect href="/workout" />;
+  if (!active) return leaving || starting ? null : <Redirect href="/workout" />;
   const workoutId = active.id;
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/workout'));

@@ -127,9 +127,13 @@ const round = (n: number) => Math.round(n * 100) / 100;
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   label: { width: 44 },
-  center: { flex: 1, alignItems: 'center' },
+  // minWidth 0 lets the column shrink to its share of the row.
+  center: { flex: 1, minWidth: 0, alignItems: 'center' },
   input: {
-    minWidth: 96,
+    // On web an <input> has a wide built-in width; at this font size it spilled over the
+    // − button (drawn underneath it), so tapping − focused the field instead.
+    width: '100%',
+    minWidth: 0,
     textAlign: 'center',
     paddingVertical: 0,
     borderWidth: 2,
