@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { AppError } from '@/components/app-error';
 import { PwaLayer } from '@/components/pwa/pwa-layer';
 import { WebSafeArea } from '@/components/pwa/safe-area';
+import { UpdateSheet } from '@/components/updates/update-sheet';
 import { useDataReady } from '@/lib/data/provider';
 import { QueryProvider } from '@/lib/query';
 import { SessionProvider, useSession } from '@/lib/session';
@@ -97,6 +98,7 @@ function RootNavigator() {
         </Stack.Protected>
       </Stack>
       <PwaLayer />
+      <UpdateSheet />
     </ThemeProvider>
   );
 }

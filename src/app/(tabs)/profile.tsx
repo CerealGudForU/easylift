@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { signOut } from '@/lib/auth';
 import { WeeklyCard } from '@/components/progress/weekly-card';
+import { UpdateRow } from '@/components/updates/update-row';
 import { dependsOn, exercisesOf, useHistory, useWorkoutData, useWorkoutSummaries, workoutStats } from '@/lib/data/queries';
 import { useSyncStatus } from '@/lib/data/sync';
 import { formatDuration, formatNumber, formatWorkoutDate } from '@/lib/format';
@@ -104,7 +105,10 @@ export default function ProfileScreen() {
           </View>
         }
         ListFooterComponent={
-          <Button label="Sign out" variant="destructive" icon="logout" onPress={() => setConfirmSignOut(true)} />
+          <View style={styles.footer}>
+            <UpdateRow />
+            <Button label="Sign out" variant="destructive" icon="logout" onPress={() => setConfirmSignOut(true)} />
+          </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: space.md }} />}
         renderItem={({ item }) => (
@@ -173,4 +177,5 @@ const styles = StyleSheet.create({
   workoutHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   statsRow: { flexDirection: 'row', gap: space.lg, marginTop: space.xs },
   mini: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  footer: { gap: space.md },
 });
